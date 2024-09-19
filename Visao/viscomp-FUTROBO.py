@@ -80,7 +80,7 @@ def click_points(event, x, y, flags, param):
         cv2.destroyWindow("Clique no ponto desejado para calibracao")
 
 def select_points():
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
@@ -138,7 +138,7 @@ def click_event1(event, x, y, flags, param):
 
 def select_yellow_color():
     
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
@@ -199,7 +199,7 @@ def click_event2(event, x, y, flags, param):
 
 def select_pink_color():
     
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
@@ -260,7 +260,7 @@ def click_event3(event, x, y, flags, param):
 
 def select_green_color():
     
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
@@ -321,7 +321,7 @@ def click_event4(event, x, y, flags, param):
 
 def select_blue_color():
     
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
@@ -382,7 +382,7 @@ def click_event(event, x, y, flags, param):
 
 def select_orange_color():
     
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
@@ -434,7 +434,7 @@ def enhance_contrast(image):
     return enhanced_image
 
 def detect_colors_with_contours():
-    cap = cv2.VideoCapture(5)
+    cap = cv2.VideoCapture(2)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)  # Largura em pixels
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)  # Altura em pixels
     cap.set(cv2.CAP_PROP_AUDIO_SAMPLES_PER_SECOND, 30)  # Taxa de atualização
