@@ -9,19 +9,23 @@ mutex = threading.Lock()
 
 #Thread de movimentação do robô:
 def th1(self):
-    while(True):
+    while(self.loop):
         if(self.move):
-            if((np.sqrt((self.target[0]**2)+(self.target[1]**2)))>5):
+            if(True):
+            #if(abs(np.sqrt((self.target[0]**2)+(self.target[1]**2))-(self.sd-self.sd0))>5):
+                #print(self.sd)
                 #Lógica de controle:
-                vd = 10
-                ve = 10
+                vd = 80
+                ve = 0
                 #Envia os setpoints de velocidade para os motores:
-                self.client.publish('pcpy-refd', str(vd).encode('utf-8'))
-                self.client.publish('pcpy-refe', str(ve).encode('utf-8'))
+                rc,_ = self.client.publish('pcpy-refd', str(vd))
+                #print(mqtt.error_string(rc))
+                self.client.publish('pcpy-refe', str(ve))
             else:
-                self.client.publish('pcpy-refd', str(0).encode('utf-8'))
-                self.client.publish('pcpy-refe', str(0).encode('utf-8'))
+                self.client.publish('pcpy-refd', str(0))
+                self.client.publish('pcpy-refe', str(0))
                 self.move = False
+        time.sleep(1)
 
 #Classe para enviar comandos ao robô:
 class ROBO:
@@ -34,6 +38,7 @@ class ROBO:
         self.client.connect(host, port)
         self.client.loop_start()
         #Definindo variáveis globais do robô:
+        self.loop = True
         self.kicking = False
         self.free_front = True
         self.dd = 300
@@ -49,12 +54,16 @@ class ROBO:
         self.ee = 0
         self.ud = 0
         self.ue = 0
+        self.sd0 = 0
+        self.se0 = 0
         self.move = False
         self.target = [0,0]
         #Declarando as threads:
         task1 = threading.Thread(target=th1, args=(self,))
         #Iniciando as threads:
         task1.start()
+        #Habilita o controle remoto:
+        self.client.publish('pcpy-rc', str(1))
     
     #Função de callback executada quando a conexão for estabelecida:
     def on_connect(self, client, userdata, flags, reason_code, properties):
@@ -79,7 +88,7 @@ class ROBO:
 
     #Função de callback executada ao receber uma mensagem:
     def on_message(self, client, userdata, msg):
-        print(msg.topic+" "+msg.payload.decode('utf-8'))
+        #print(msg.topic+" "+msg.payload.decode('utf-8'))
         #Atribuição do valor recebido à variável correspondente:
         with mutex:
             if(msg.topic == 'esp32-kstate'):
@@ -115,12 +124,37 @@ class ROBO:
     
     #Função para chutar:
     def kick(self, power):
-        self.client.publish('pcpy-kick', str(power).encode('utf-8'))
+        self.client.publish('pcpy-kick', str(power))
+        time.sleep(0.5)
     
     #Função para movimentação:
     def gotoPos(self, x,y):
-        self.target = [x,y]
-        self.move = True
+        with mutex:
+            self.target = [x,y]
+            self.sd0 = self.sd
+            self.se0 = self.se
+            self.move = True
+    
+    #Função para aguardar a movimentação:
+    def waitMove(self):
+        while(True):
+            time.sleep(10e-3)
+            if(not self.move):
+                break
+
+    #Função para encerrar o programa (fechar as threads, etc...):
+    def endProgram(self):
+        self.loop = False
+        #Desabilita o controle remoto:
+        self.client.publish('pcpy-rc', str(0))
         
 
 rd = ROBO('test.mosquitto.org', 1883)
+
+rd.gotoPos(200, 200)
+
+rd.waitMove()
+
+#rd.kick(100)
+
+rd.endProgram()
