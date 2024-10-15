@@ -4,11 +4,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include "math.h"
-#include "esp_wifi.h"
-#include "esp_wifi_types.h"
-#include "esp_netif.h"
-#include "nvs_flash.h"
-#include "mqtt_client.h"
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -18,7 +13,6 @@
 #include "driver/gpio.h"
 #include "esp_sleep.h"
 #include <ultrasonic.h>
-#include "driver/gpio.h"
 #include "driver/gptimer.h"
 #include "driver/ledc.h"
 #include "soc/clk_tree_defs.h"
@@ -26,25 +20,30 @@
 #include "esp_err.h"
 #include "esp_event.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
+#include "esp_wifi_types.h"
+#include "esp_netif.h"
+#include "nvs_flash.h"
+#include "mqtt_client.h"
 
 
 
 //Definição dos pinos utilizados pelos dispositivos conectados ao ESP-32:
-#define MD1 5		// Motor Direito Pino 1
-#define MD2 18		// Motor Direito Pino 2
-#define ME1 25		// Motor Esquerdo Pino 1
-#define ME2 26		// Motor Esquerdo Pino 2
-#define EDA 32		// Encoder Direito A (CLK)
-#define EDB 33		// Encoder Direito B (DT)
-#define EEA 34		// Encoder Esquerdo A (CLK)
-#define EEB 35		// Encoder Esquerdo B (DT)
-#define USET 23		// Ultrassom Esquerdo (Trig)
-#define USEE 22		// Ultrassom Esquerdo (Echo)
-#define USCT 21		// Ultrassom Central (Trig)
-#define USCE 19		// Ultrassom Central (Echo)
-#define USDT 27		// Ultrassom Direito (Trig)
-#define USDE 12		// Ultrassom Direito (Echo)
-#define CH 15		// Chutador
+#define MD1 16		// Motor Direito Pino 1
+#define MD2 17		// Motor Direito Pino 2
+#define ME1 18		// Motor Esquerdo Pino 1
+#define ME2 19		// Motor Esquerdo Pino 2
+#define EDA 34		// Encoder Direito A (CLK)
+#define EDB 35		// Encoder Direito B (DT)
+#define EEA 36		// Encoder Esquerdo A (CLK)
+#define EEB 39		// Encoder Esquerdo B (DT)
+//#define USET 23		// Ultrassom Esquerdo (Trig)
+//#define USEE 22		// Ultrassom Esquerdo (Echo)
+#define USCT 22		// Ultrassom Central (Trig)
+#define USCE 23		// Ultrassom Central (Echo)
+//#define USDT 27		// Ultrassom Direito (Trig)
+//#define USDE 12		// Ultrassom Direito (Echo)
+#define CH 21		// Chutador
 
 //Parâmetros de hardware do robô:
 #define D 67		//diâmetro da roda do robô, em milímetros
@@ -54,11 +53,11 @@
 
 //Constantes do controlador:
 #define kp 1		//Ganho da ação proporcional
-#define ki 5		//Ganho da ação integral
+#define ki 0		//Ganho da ação integral
 
 //Outras constantes:
 #define ts 1		//tempo de amostragem, em ms
-#define kf 1000		//constante do filtro passa-baixas digital
+#define kf 500		//constante do filtro passa-baixas digital
 #define DMIN 80		//Distância mínima permitida para sistema de anti-colisão, em mm
 
 
@@ -69,7 +68,7 @@ esp_timer_handle_t kick_timer;
 pcnt_unit_handle_t *ED, *EE;
 ultrasonic_sensor_t *USD, *USC, *USE;
 char topic[15], data[10];
-bool kick_state=false, free_front=true, kicking=false;
+bool kick_state=false, free_front=true, kicking=false, remote_control=false;
 float refd=0, refe=0, sad=0, sd=0, vd=0, sae=0, se=0, ve=0, ed=0, ied=0, ud=0, ee=0, iee=0, ue=0, dd=300, dc=300, de=300;
 uint64_t t=0, tad=0, tae=0;
 
@@ -171,6 +170,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	esp_mqtt_event_handle_t event = event_data;
 	sprintf(topic, "%.*s", event->topic_len, event->topic);
 	sprintf(data, "%.*s", event->data_len, event->data);
+	//printf("\n%s\t%s", topic, data);
 	if(!strcmp(topic, "pcpy-refd"))
 	{
 		float val = atof(data);
@@ -189,8 +189,19 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	}
 	if(!strcmp(topic, "pcpy-kick"))
 	{
+		//printf("\nMandou chutar!");
 		int val = atoi(data);
 		kick(val);
+	}
+	if(!strcmp(topic, "pcpy-rc"))
+	{
+		bool val = (bool)atoi(data);
+		remote_control = val;
+		if(remote_control)
+		{
+			printf("\nREMOTE CONTROL ON!");
+			printf("\nREMOTE CONTROL OFF!");
+		}
 	}
 }
 
@@ -212,9 +223,10 @@ void mqtt()
 	esp_mqtt_client_start(client);
 
 	//Subscrevendo nos tópicos:
-	esp_mqtt_client_subscribe(client, "pcpy-refd", 1);
-	esp_mqtt_client_subscribe(client, "pcpy-refe", 1);
-	esp_mqtt_client_subscribe(client, "pcpy-kick", 1);
+	esp_mqtt_client_subscribe(client, "pcpy-rc", 0);
+	esp_mqtt_client_subscribe(client, "pcpy-refd", 0);
+	esp_mqtt_client_subscribe(client, "pcpy-refe", 0);
+	esp_mqtt_client_subscribe(client, "pcpy-kick", 0);
 }
 
 //Função para configurar o PWM:
@@ -396,9 +408,9 @@ static void update_data(void *arg)
 
 static void check_collision(void *arg)
 {
-	dd += ((float)(us_read(USD)-dd)/(float)5.0);
+	//dd += ((float)(us_read(USD)-dd)/(float)5.0);
 	dc += ((float)(us_read(USC)-dc)/(float)5.0);
-	de += ((float)(us_read(USE)-de)/(float)5.0);
+	//de += ((float)(us_read(USE)-de)/(float)5.0);
 	if((dd<DMIN) || (dc<DMIN) || (de<DMIN))
 	{
 		//printf("\n Objeto identificado à frente do robô!");
@@ -449,52 +461,55 @@ static void control(void* arg)
 //Função para publicar os dados nos tópicos:
 static void send_data(void *arg)
 {
-	char send[10];
-	//Estado do chutador:
-	sprintf(send, "%d", ((int)kicking));
-	esp_mqtt_client_publish(client, "esp32-kstate", send, 0, 1, 0);
-	//Estado do sistema anti-colisão (collision avoidance):
-	sprintf(send, "%d", ((int)free_front));
-	esp_mqtt_client_publish(client, "esp32-ca", send, 0, 1, 0);
-	//Distância encoder direito:
-	sprintf(send, "%d", (int)round(dd));
-	esp_mqtt_client_publish(client, "esp32-dd", send, 0, 1, 0);
-	//Distância encoder central:
-	sprintf(send, "%d", (int)round(dc));
-	esp_mqtt_client_publish(client, "esp32-dc", send, 0, 1, 0);
-	//Distância encoder esquerdo:
-	sprintf(send, "%d", (int)round(de));
-	esp_mqtt_client_publish(client, "esp32-de", send, 0, 1, 0);
-	//Referência motor direito:
-	sprintf(send, "%.2f", refd);
-	esp_mqtt_client_publish(client, "esp32-refd", send, 0, 1, 0);
-	//Referência motor esquerdo:
-	sprintf(send, "%.2f", refe);
-	esp_mqtt_client_publish(client, "esp32-refe", send, 0, 1, 0);
-	//Posição roda direita:
-	sprintf(send, "%d", (int)round(sd));
-	esp_mqtt_client_publish(client, "esp32-sd", send, 0, 1, 0);
-	//Posição roda esquerda:
-	sprintf(send, "%d", (int)round(se));
-	esp_mqtt_client_publish(client, "esp32-se", send, 0, 1, 0);
-	//Velocidade roda direita:
-	sprintf(send, "%.2f", vd);
-	esp_mqtt_client_publish(client, "esp32-vd", send, 0, 1, 0);
-	//Velocidade roda esquerda:
-	sprintf(send, "%.2f", ve);
-	esp_mqtt_client_publish(client, "esp32-ve", send, 0, 1, 0);
-	//Erro de velocidade roda direita:
-	sprintf(send, "%.2f", ed);
-	esp_mqtt_client_publish(client, "esp32-ed", send, 0, 1, 0);
-	//Erro de velocidade roda esquerda:
-	sprintf(send, "%.2f", ee);
-	esp_mqtt_client_publish(client, "esp32-ee", send, 0, 1, 0);
-	//Sinal de controle motor direito:
-	sprintf(send, "%.2f", ud);
-	esp_mqtt_client_publish(client, "esp32-ud", send, 0, 1, 0);
-	//Sinal de controle motor esquerdo:
-	sprintf(send, "%.2f", ue);
-	esp_mqtt_client_publish(client, "esp32-ue", send, 0, 1, 0);
+	if(remote_control)
+	{
+		char send[10];
+		//Estado do chutador:
+		/*sprintf(send, "%d", ((int)kicking));
+		esp_mqtt_client_publish(client, "esp32-kstate", send, 0, 1, 0);
+		//Estado do sistema anti-colisão (collision avoidance):
+		sprintf(send, "%d", ((int)free_front));
+		esp_mqtt_client_publish(client, "esp32-ca", send, 0, 1, 0);
+		//Distância ultrassom direito:
+		sprintf(send, "%d", (int)round(dd));
+		esp_mqtt_client_publish(client, "esp32-dd", send, 0, 1, 0);
+		//Distância ultrassom central:
+		sprintf(send, "%d", (int)round(dc));
+		esp_mqtt_client_publish(client, "esp32-dc", send, 0, 1, 0);
+		//Distância ultrassom esquerdo:
+		sprintf(send, "%d", (int)round(de));
+		esp_mqtt_client_publish(client, "esp32-de", send, 0, 1, 0);
+		//Referência motor direito:
+		sprintf(send, "%.2f", refd);
+		esp_mqtt_client_publish(client, "esp32-refd", send, 0, 1, 0);
+		//Referência motor esquerdo:
+		sprintf(send, "%.2f", refe);
+		esp_mqtt_client_publish(client, "esp32-refe", send, 0, 1, 0);*/
+		//Posição roda direita:
+		sprintf(send, "%d", (int)round(sd));
+		esp_mqtt_client_publish(client, "esp32-sd", send, 0, 0, 0);
+		//Posição roda esquerda:
+		sprintf(send, "%d", (int)round(se));
+		esp_mqtt_client_publish(client, "esp32-se", send, 0, 0, 0);
+		//Velocidade roda direita:
+		/*sprintf(send, "%.2f", vd);
+		esp_mqtt_client_publish(client, "esp32-vd", send, 0, 1, 0);
+		//Velocidade roda esquerda:
+		sprintf(send, "%.2f", ve);
+		esp_mqtt_client_publish(client, "esp32-ve", send, 0, 1, 0);
+		//Erro de velocidade roda direita:
+		sprintf(send, "%.2f", ed);
+		esp_mqtt_client_publish(client, "esp32-ed", send, 0, 1, 0);
+		//Erro de velocidade roda esquerda:
+		sprintf(send, "%.2f", ee);
+		esp_mqtt_client_publish(client, "esp32-ee", send, 0, 1, 0);
+		//Sinal de controle motor direito:
+		sprintf(send, "%.2f", ud);
+		esp_mqtt_client_publish(client, "esp32-ud", send, 0, 1, 0);
+		//Sinal de controle motor esquerdo:
+		sprintf(send, "%.2f", ue);
+		esp_mqtt_client_publish(client, "esp32-ue", send, 0, 1, 0);*/
+	}
 }
 
 //Função para configurar o timer dedicado:
@@ -514,7 +529,7 @@ void timers()
 		.callback = &check_collision,
 	};
 	esp_timer_create(&ca_timer_args, &ca_timer);
-	esp_timer_start_periodic(ca_timer, 20e3);
+	esp_timer_start_periodic(ca_timer, 10e3);
 
 	//timer peridódico para controle:
 	esp_timer_handle_t control_timer;
@@ -548,6 +563,8 @@ void app_main()
 	//Configuração e inicialização so wifi:
 	wifi();
 
+	sleep(3);
+
 	//Configuração e inicialização do serviço MQTT:
 	mqtt();
 
@@ -570,20 +587,21 @@ void app_main()
 	EE = enc_attach(EEA, EEB);
 
 	//Definição dos ultrassons:
-	USD = us_attach(USDT, USDE);
+	//USD = us_attach(USDT, USDE);
 	USC = us_attach(USCT, USCE);
-	USE = us_attach(USET, USEE);
+	//USE = us_attach(USET, USEE);
 
 	//Configuração e inicialização dos timers dedicados:
 	timers();
 
 	//Serial plot:
-	/*while(1)
+	while(1)
 	{
-		//printf("sd:%f,refd:%f,vd:%f,ed:%f,ud:%f\n", sd, ((float)N/60.0*M_PI*D*refd/100.0), vd, ed, ud);
+		printf("sd:%f,refd:%f,vd:%f,ed:%f,ud:%f\n", sd, ((float)N/60.0*M_PI*D*refd/100.0), vd, ed, ud);
 		//printf("se:%f,refe:%f,ve:%f,ee:%f,ue:%f\n", se, ((float)N/60.0*M_PI*D*refe/100.0), ve, ee, ue);
 		//printf("de:%f,dc:%f,dd:%f\n", de, dc, dd);
 		//kick(100);
-		//vTaskDelay(pdMS_TO_TICKS(10));
-	}*/
+		//printf("refd:%f,refe:%f,dc:%f\n", refd, refe, dc);
+		vTaskDelay(pdMS_TO_TICKS(10));
+	}
 }
