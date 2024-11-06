@@ -13,7 +13,8 @@ CAP_FPS = 30
 frame = None
 waitKey_delay = 40  # ms
 # Pontos reais conhecidos no campo:
-XY_POINTS = [(0,0), (-1190,800), (1190,800), (1190,-800), (-1190,-800)]
+XY_POINTS = [(0, 0), (-1190, 800), (1190, 800), (1190, -800), (-1190, -800)]
+
 
 def init_capture():
     global cap
@@ -66,7 +67,7 @@ def uv_to_xy(uv, cte):
     '''
     coefs = np.vstack([cte[0], cte[1]])
     imag = np.hstack((np.ones(1), np.array(uv), np.array(uv[0]**2),
-        np.array(uv[1]**2)))[:, np.newaxis]
+                     np.array(uv[1]**2)))[:, np.newaxis]
     out = (coefs@imag).T
 
     return np.array(out[0].round(0), dtype=np.int_).tolist()
@@ -78,7 +79,7 @@ class Calibration:
         @param xy_points: pontos reais conhecidos no campo
         '''
         self.xy_points = xy_points
-        self.uv_points = []  # Vetor de Pontos na Imagem 
+        self.uv_points = []  # Vetor de Pontos na Imagem
         self.cte = None  # Constantes para transformação de coordenada
 
     def select_points(self):
@@ -100,7 +101,7 @@ class Calibration:
             frame_enhanced = enhance_contrast(frame)
             cv.imshow(window_name, frame_enhanced)
             cv.setMouseCallback(window_name, self.__click_event,
-                param=frame_enhanced)
+                                param=frame_enhanced)
             key = cv.waitKey(waitKey_delay)
 
             if key == ord('q'):
@@ -125,14 +126,14 @@ class Calibration:
     def __coef_calc(self):
         # Montando a matriz A
         uvarray = np.array(self.uv_points)
-        uvec = uvarray[:,0][:, np.newaxis]
-        vvec = uvarray[:,1][:, np.newaxis]
-        A = np.block([np.ones((len(self.xy_points),1)), uvarray, (uvec**2),
-            (vvec**2)])
+        uvec = uvarray[:, 0][:, np.newaxis]
+        vvec = uvarray[:, 1][:, np.newaxis]
+        A = np.block([np.ones((len(self.xy_points), 1)), uvarray, (uvec**2),
+                     (vvec**2)])
 
         # Montando as matrizes B
-        Bx = np.array(self.xy_points)[:,0][:, np.newaxis]
-        By = np.array(self.xy_points)[:,1][:, np.newaxis]
+        Bx = np.array(self.xy_points)[:, 0][:, np.newaxis]
+        By = np.array(self.xy_points)[:, 1][:, np.newaxis]
 
         # Calculando a pseudo-inversa
         A_ = np.linalg.inv(A.T@A)@A.T
@@ -153,7 +154,7 @@ class Calibration:
 
 
 class Color:
-    def __init__(self, name, min_area=100, hs_tolerance=(10,75)):
+    def __init__(self, name, min_area=100, hs_tolerance=(10, 75)):
         '''
         @param name: define o nome da cor.
         @param hs_tolerance: define os limites de tolerância, para 'hue' e
@@ -188,7 +189,7 @@ class Color:
                 frame_enhanced = enhance_contrast(frame)
                 cv.imshow(window_name, frame_enhanced)
                 cv.setMouseCallback(window_name, self.__click_event,
-                    param=frame_enhanced)
+                                    param=frame_enhanced)
                 key = cv.waitKey(waitKey_delay)
 
                 if key == ord('q'):
@@ -215,19 +216,34 @@ class Color:
             return
 
         clicked_color = param[y, x]
+        # print(f'clicked_color = {clicked_color}')  # rascunho
 
         # Converte a cor clicada de BGR para HSV
         hsv_color = cv.cvtColor(
             np.uint8([[clicked_color]]), cv.COLOR_BGR2HSV)[0][0]
+        # print(f'hsv_color = {hsv_color}')  # rascunho
+        # print(f'np.clip = {np.clip(hsv_color[1] + self.hs_tolerance[1], 0, 255)}')  # rascunho
 
+        lower_h = int(hsv_color[0]) - self.hs_tolerance[0]
+        lower_s = int(hsv_color[1]) - self.hs_tolerance[1]
+        # print(f'lower_h = {lower_h}')  # rascunho
+        # print(f'lower_s = {lower_s}')  # rascunho
         self.lower_hsv = np.array([
-            np.clip(hsv_color[0] - self.hs_tolerance[0], 0, 179),
-            np.clip(hsv_color[1] - self.hs_tolerance[1], 0, 255),
+            np.clip(lower_h, 0, 179),
+            np.clip(lower_s, 0, 255),
             20
         ])
+
+        # print(f'hsv_color[1] = {hsv_color[1]}')  # rascunho
+        # print(f'self.hs_tolerance[1] = {self.hs_tolerance[1]}')  # rascunho
+        # print(f'{hsv_color[1]} + {self.hs_tolerance[1]} = {hsv_color[1] + self.hs_tolerance[1]}')  # rascunho
+        upper_h = int(hsv_color[0]) + self.hs_tolerance[0]
+        upper_s = int(hsv_color[1]) + self.hs_tolerance[1]
+        # print(f'upper_h = {upper_h}')  # rascunho
+        # print(f'upper_s = {upper_s}')  # rascunho
         self.upper_hsv = np.array([
-            np.clip(hsv_color[0] + self.hs_tolerance[0], 0, 179),
-            np.clip(hsv_color[1] + self.hs_tolerance[1], 0, 255),
+            np.clip(upper_h, 0, 179),
+            np.clip(upper_s, 0, 255),
             255
         ])
 
@@ -322,10 +338,10 @@ class Robot:
             self.pose['y'] = ry + (self.xoff * np.sin(theta_rad))
             self.pose['theta'] = np.degrees(theta_rad)
 
-            cv.circle(frame, self.team_color.uv, 3, (0,0,255), -1)
+            cv.circle(frame, self.team_color.uv, 3, (0, 0, 255), -1)
             text = f"(u,v) = {self.team_color.uv}"
             cv.putText(frame, text, self.team_color.uv, cv.FONT_HERSHEY_PLAIN,
-                1, (255,255,0), 1)
+                       1, (255, 255, 0), 1)
 
         return self.pose
 
@@ -364,12 +380,18 @@ class Ball:
         global frame
 
         self.color.find_centroid(frame_hsv)
+
+        if self.color.uv is None:
+            print('Ball not found')
+            return
+
         rx, ry = uv_to_xy(self.color.uv, self.cte)
 
-        cv.circle(frame, self.color.uv, 3, (255,0,0), -1)
-        text = f"ball (u,v) = {self.color.uv}"
+        cv.circle(frame, self.color.uv, 3, (255, 0, 0), -1)
+        # text = f"ball (u,v) = {self.color.uv}"
+        text = f"ball (x,y) = {rx},{ry}"
         cv.putText(frame, text, self.color.uv, cv.FONT_HERSHEY_PLAIN, 1,
-            (255,255,0), 1)
+                   (255, 255, 0), 1)
 
 
 def main():
@@ -385,7 +407,7 @@ def main():
 
     # green = Color('verde')
     # pink = Color('rosa', min_area=0)
-    orange = Color('laranja', min_area=50)
+    orange = Color('laranja', min_area=50, hs_tolerance=(5, 75))
 
     # robot = Robot(green, pink, calib.cte)
     ball = Ball(orange, calib.cte)
