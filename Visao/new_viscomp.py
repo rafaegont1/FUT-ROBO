@@ -283,7 +283,7 @@ class Color:
                 continue
 
             uv = (int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"]))
-            print(f'cor {self.name}: uv = {uv} | área = {area}')  # rascunho
+            # print(f'cor {self.name}: uv = {uv} | área = {area}')  # rascunho
 
             if multi_centroids:
                 self.uv.append(uv)
@@ -318,10 +318,14 @@ class Robot:
         self.team_color.find_centroid(frame_hsv, multi_centroids=True)
 
         for team_centroid in self.team_color.uv:
-            roi_hsv = self.__get_roi(frame_hsv, team_centroid)
+            offset, roi_hsv = self.__get_roi(frame_hsv, team_centroid)
             self.player_color.find_centroid(roi_hsv)
 
             if self.player_color.uv is not None:
+                self.player_color.uv = (
+                    self.player_color.uv[0] + offset[0],
+                    self.player_color.uv[1] + offset[1]
+                )
                 self.team_color.uv = team_centroid
                 break
 
@@ -339,7 +343,8 @@ class Robot:
             self.pose['theta'] = np.degrees(theta_rad)
 
             cv.circle(frame, self.team_color.uv, 3, (0, 0, 255), -1)
-            text = f"(u,v) = {self.team_color.uv}"
+            text = "(x,y,theta) = {:.2f},{:.2f},{:.2f}".format(self.pose['x'], self.pose['y'], self.pose['theta'])
+            # text = f"(x,y,theta) = {self.pose['x']},{self.pose['y']},{self.pose['theta']}"
             cv.putText(frame, text, self.team_color.uv, cv.FONT_HERSHEY_PLAIN,
                        1, (255, 255, 0), 1)
 
@@ -354,8 +359,12 @@ class Robot:
         u_start = max(0, uv[0] - self.roi_sz)
         u_end = min(frame.shape[1], uv[0] + self.roi_sz)
 
+        # Coordenadas do início do ROI para achar o centroide em relação à
+        # imagem inteira
+        offset = (u_start, v_start)
+
         # Extração da região de interesse (ROI) na imagem HSV
-        return frame_hsv[v_start:v_end, u_start:u_end]
+        return offset, frame_hsv[v_start:v_end, u_start:u_end]
 
     def __get_theta(self):
         # Diferença entre as coordenadas verticais (v)
@@ -366,6 +375,10 @@ class Robot:
 
         # Calcula o ângulo em radianos usando arctan2
         theta_rad = -np.arctan2(delta_v, delta_u)  # TODO: verificar se tem o sinal de menos mesmo
+
+        print(f'delta_v = {self.player_color.uv[1]} - {self.team_color.uv[1]} = {delta_v}')
+        print(f'delta_u = {self.player_color.uv[0]} - {self.team_color.uv[0]} = {delta_u}')
+        print(f'theta_rad = {theta_rad}')
 
         return theta_rad
 
@@ -405,12 +418,12 @@ def main():
     calib = Calibration(XY_POINTS)
     calib.select_points()
 
-    # green = Color('verde')
-    # pink = Color('rosa', min_area=0)
-    orange = Color('laranja', min_area=50, hs_tolerance=(5, 75))
+    green = Color('verde')
+    pink = Color('rosa', min_area=0)
+    # orange = Color('laranja', min_area=50, hs_tolerance=(5, 75))
 
-    # robot = Robot(green, pink, calib.cte)
-    ball = Ball(orange, calib.cte)
+    robot = Robot(green, pink, calib.cte)
+    # ball = Ball(orange, calib.cte)
 
     try:
         while True:
@@ -426,8 +439,8 @@ def main():
             frame_enhanced = enhance_contrast(frame)
             frame_hsv = cv.cvtColor(frame_enhanced, cv.COLOR_BGR2HSV)
 
-            # robot.find_pose(frame_hsv)
-            ball.find_pose(frame_hsv)
+            robot.find_pose(frame_hsv)
+            # ball.find_pose(frame_hsv)
 
             cv.imshow(window_name, frame)
             key = cv.waitKey(waitKey_delay)
