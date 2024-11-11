@@ -1,20 +1,39 @@
 import cv2 as cv
 import numpy as np
+import paho.mqtt.client as mqtt
 from src.color import Color
 from src.calibration import uv_to_xy
 
 class Robot:
-    def __init__(self, team_color, player_color, cte, xoff=100, roi_sz=15):
+    def __init__(self, name, team_color, player_color, cte, xoff=100, roi_sz=15):
         '''
         @param xoff: distância (em mm) entre o centro do landmark, até o eixo de
         rotação do robô
         '''
+        self.name = name
         self.team_color = team_color
         self.player_color = player_color
         self.cte = cte
         self.xoff = xoff
         self.roi_sz = roi_sz
         self.pose = {'x': None, 'y': None, 'theta': None}
+
+        self.client = mqtt.Client()
+        # Definir os callbacks
+        self.client.on_connect = self.__on_connect
+        self.client.on_publish = self.__on_publish
+        # Conectar ao broker MQTT
+        self.client.connect('broker.emqx.io', 1883)
+        # Iniciar o loop do cliente para manter a conexão ativa
+        self.client.loop_start()  # Usando loop_start() para não bloquear a execução do código
+
+    # Função de callback para quando a conexão for bem-sucedida
+    def __on_connect(self, client, userdata, flags, rc):
+        print(f"Conectado com código {rc}")
+
+    # Função de callback para quando a publicação for confirmada
+    def __on_publish(self, client, userdata, mid):
+        print(f"Mensagem publicada com id: {mid}")
 
     def find_pose(self, frame, frame_hsv):
         # HACK: tenta encrontrar todos os centroides da cor do time com área
@@ -56,7 +75,11 @@ class Robot:
             cv.putText(frame, text, self.team_color.uv, cv.FONT_HERSHEY_PLAIN,
                        0.8, (255, 255, 0), 1)
 
-        return self.pose
+        # Transformando os valores (floats) em inteiros e, em seguida, criando a string
+        msg = ', '.join(map(lambda x: str(int(x)), self.pose.values()))
+        self.client.publish(f'robot{self.name}', msg)
+
+        # return self.pose
 
     def __get_roi(self, frame_hsv, uv):
         # Limites verticais (linhas - coordenada v)

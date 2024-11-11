@@ -29,23 +29,23 @@ def main():
 
     cte = calibrate(XY_POINTS, video.frame_enhanced, WAITKEY_DELAY)
 
-    # orange = Color('laranja', min_area=50, hs_tolerance=(5, 75))
-    # orange.select(video.frame_enhanced, WAITKEY_DELAY)
+    orange = Color('laranja', min_area=50, hs_tolerance=(5, 75))
+    orange.select(video.frame_enhanced, WAITKEY_DELAY)
 
-    green = Color('verde')
-    green.select(video.frame_enhanced, WAITKEY_DELAY)
+    # green = Color('verde')
+    # green.select(video.frame_enhanced, WAITKEY_DELAY)
 
-    pink = Color('rosa', min_area=5)
-    pink.select(video.frame_enhanced, WAITKEY_DELAY)
+    # pink = Color('rosa', min_area=5)
+    # pink.select(video.frame_enhanced, WAITKEY_DELAY)
 
-    robot = Robot(green, pink, cte)
-    # ball = Ball(orange, cte)
+    # robot = Robot('A', green, pink, cte)
+    ball = Ball(orange, cte)
 
     while True:
         video.update_frame()
 
-        robot.find_pose(video.frame, video.frame_hsv)
-        # ball.find_pose(video.frame, video.frame_hsv)
+        # robot.find_pose(video.frame, video.frame_hsv)
+        ball.find_pose(video.frame, video.frame_hsv)
 
         key = video.show_frame()
 
