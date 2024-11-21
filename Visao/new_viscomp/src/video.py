@@ -1,5 +1,6 @@
 import cv2 as cv
 
+
 class Video:
     def __init__(self, id, width, height, fps, window_name='frame', waitKey_delay=40):
         self.cap = cv.VideoCapture(id)
@@ -31,7 +32,7 @@ class Video:
             # raise RuntimeError("Falha ao capturar o frame da câmera.")
 
             # HACK: reiniciar o vídeo quando ele chega ao fim
-            cap.set(cv.CAP_PROP_POS_FRAMES, 0)  # rascunho
+            self.cap.set(cv.CAP_PROP_POS_FRAMES, 0)  # rascunho
             print('Rewinding video...')  # rascunho
             return  # rascunho
 

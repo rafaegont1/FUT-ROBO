@@ -1,8 +1,9 @@
 import cv2 as cv
 import numpy as np
-import paho.mqtt.client as mqtt
 from src.color import Color
+from src.publisher import Publisher
 from src.calibration import uv_to_xy
+
 
 class Robot:
     def __init__(self, name, team_color, player_color, cte, xoff=100, roi_sz=15):
@@ -10,7 +11,6 @@ class Robot:
         @param xoff: distância (em mm) entre o centro do landmark, até o eixo de
         rotação do robô
         '''
-        self.name = name
         self.team_color = team_color
         self.player_color = player_color
         self.cte = cte
@@ -18,14 +18,7 @@ class Robot:
         self.roi_sz = roi_sz
         self.pose = {'x': None, 'y': None, 'theta': None}
 
-        self.client = mqtt.Client()
-        # Definir os callbacks
-        self.client.on_connect = self.__on_connect
-        self.client.on_publish = self.__on_publish
-        # Conectar ao broker MQTT
-        self.client.connect('broker.emqx.io', 1883)
-        # Iniciar o loop do cliente para manter a conexão ativa
-        self.client.loop_start()  # Usando loop_start() para não bloquear a execução do código
+        self.pub = Publisher(f'robot_{name}')
 
     # Função de callback para quando a conexão for bem-sucedida
     def __on_connect(self, client, userdata, flags, rc):
@@ -69,15 +62,8 @@ class Robot:
             self.pose['y'] = ry + (self.xoff * np.sin(theta_rad))
             self.pose['theta'] = np.degrees(theta_rad)
 
-            cv.circle(frame, self.team_color.uv, 3, (0, 0, 255), -1)
-            text = "(x,y,theta) = {:.2f},{:.2f},{:.2f}".format(self.pose['x'], self.pose['y'], self.pose['theta'])
-            # text = f"(x,y,theta) = {self.pose['x']},{self.pose['y']},{self.pose['theta']}"
-            cv.putText(frame, text, self.team_color.uv, cv.FONT_HERSHEY_PLAIN,
-                       0.8, (255, 255, 0), 1)
-
-        # Transformando os valores (floats) em inteiros e, em seguida, criando a string
-        msg = ', '.join(map(lambda x: str(int(x)), self.pose.values()))
-        self.client.publish(f'robot{self.name}', msg)
+            self.__draw_on_frame(frame)
+            self.pub.publish(self.pose.values())
 
         # return self.pose
 
@@ -107,8 +93,15 @@ class Robot:
         # Calcula o ângulo em radianos usando arctan2
         theta_rad = -np.arctan2(delta_v, delta_u)  # TODO: verificar se tem o sinal de menos mesmo
 
-        print(f'delta_v = {self.player_color.uv[1]} - {self.team_color.uv[1]} = {delta_v}')
-        print(f'delta_u = {self.player_color.uv[0]} - {self.team_color.uv[0]} = {delta_u}')
-        print(f'theta_rad = {theta_rad}')
+        # print(f'delta_v = {self.player_color.uv[1]} - {self.team_color.uv[1]} = {delta_v}')
+        # print(f'delta_u = {self.player_color.uv[0]} - {self.team_color.uv[0]} = {delta_u}')
+        # print(f'theta_rad = {theta_rad}')
 
         return theta_rad
+
+    def __draw_on_frame(self, frame):
+        cv.circle(frame, self.team_color.uv, 3, (0, 0, 255), -1)
+        text = "(x,y,theta) = {:.2f},{:.2f},{:.2f}".format(
+            self.pose['x'], self.pose['y'], self.pose['theta'])
+        cv.putText(frame, text, self.team_color.uv, cv.FONT_HERSHEY_PLAIN,
+                   0.8, (255, 255, 0), 1)

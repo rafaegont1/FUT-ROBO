@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import time
 import cv2 as cv
 # import numpy as np
 from src.video import Video
@@ -30,7 +31,8 @@ def main():
     cte = calibrate(XY_POINTS, video.frame_enhanced, WAITKEY_DELAY)
 
     orange = Color('laranja', min_area=50, hs_tolerance=(5, 75))
-    orange.select(video.frame_enhanced, WAITKEY_DELAY)
+    if orange.is_hsv_empty():
+        orange.select(video.frame_enhanced, WAITKEY_DELAY)
 
     # green = Color('verde')
     # green.select(video.frame_enhanced, WAITKEY_DELAY)
@@ -42,6 +44,8 @@ def main():
     ball = Ball(orange, cte)
 
     while True:
+        begin = time.time()
+
         video.update_frame()
 
         # robot.find_pose(video.frame, video.frame_hsv)
@@ -51,6 +55,10 @@ def main():
 
         if key == ord('q'):
             break
+
+        end = time.time()
+        elapsed_time = end - begin
+        print(f'tempo da iteração: {elapsed_time:.6f} seg')
 
 
 if __name__ == '__main__':

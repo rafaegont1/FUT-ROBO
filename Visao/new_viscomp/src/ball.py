@@ -1,7 +1,8 @@
 import cv2 as cv
-import paho.mqtt.client as mqtt
 from src.color import Color
+from src.publisher import Publisher
 from src.calibration import uv_to_xy
+
 
 class Ball:
     def __init__(self, color, cte):
@@ -9,14 +10,7 @@ class Ball:
         self.pose = {'x': None, 'y': None}
         self.cte = cte
 
-        self.client = mqtt.Client()
-        # Definir os callbacks
-        self.client.on_connect = self.__on_connect
-        self.client.on_publish = self.__on_publish
-        # Conectar ao broker MQTT
-        self.client.connect('broker.emqx.io', 1883)
-        # Iniciar o loop do cliente para manter a conexão ativa
-        self.client.loop_start()  # Usando loop_start() para não bloquear a execução do código
+        self.pub = Publisher('ball')
 
     # Função de callback para quando a conexão for bem-sucedida
     def __on_connect(self, client, userdata, flags, rc):
@@ -40,6 +34,7 @@ class Ball:
         text = f"ball (x,y) = {self.pose['x']},{self.pose['y']}"
         cv.putText(frame, text, self.color.uv, cv.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1)
 
+        self.pub.publish(self.pose.values())
         # Transformando os valores (floats) em inteiros e, em seguida, criando a string
-        msg = ', '.join(map(lambda x: str(int(x)), self.pose.values()))
-        self.client.publish('ball', msg)
+        # msg = ', '.join(map(lambda x: str(int(x)), self.pose.values()))
+        # self.client.publish('ball', msg)

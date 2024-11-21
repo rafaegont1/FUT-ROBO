@@ -1,29 +1,35 @@
 import cv2 as cv
 import numpy as np
+from src.util import file_read, file_write
 
-uv_points = []  # Vetor de Pontos na Imagem
+FILE_NAME = 'calibration.npy'
+uv_points = None  # Vetor de Pontos na Imagem
 
 
 def calibrate(xy_points, frame_enhanced, waitKey_delay):
     global uv_points
 
-    uv_points = []
+    uv_points = file_read(FILE_NAME)
 
-    window_name = "Clique no ponto desejado para calibracao"
-    cv.namedWindow(window_name)
+    if not uv_points.any():
+        window_name = "Clique no ponto desejado para calibracao"
+        cv.namedWindow(window_name)
 
-    while len(uv_points) < len(xy_points):
-        cv.imshow(window_name, frame_enhanced)
-        cv.setMouseCallback(window_name, calibrate_click_event, param=frame_enhanced)
-        key = cv.waitKey(waitKey_delay)
-        if key == ord('q'):
-            break
+        while len(uv_points) < len(xy_points):
+            cv.imshow(window_name, frame_enhanced)
+            cv.setMouseCallback(window_name, calibrate_click_event, param=frame_enhanced)
+            cv.waitKey(waitKey_delay)
+            # key = cv.waitKey(waitKey_delay)
+            # if key == ord('q'):
+            #     break
+
+        cv.destroyWindow(window_name)
+
+        file_write(FILE_NAME, uv_points)
 
     cte = coef_calc(uv_points, xy_points)
     print("Calibração concluída!")
     print(f'cte = {cte}')  # rascunho
-
-    cv.destroyWindow(window_name)
 
     return cte
 
