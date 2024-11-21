@@ -34,13 +34,26 @@ def main():
     if orange.is_hsv_empty():
         orange.select(video.frame_enhanced, WAITKEY_DELAY)
 
-    # green = Color('verde')
-    # green.select(video.frame_enhanced, WAITKEY_DELAY)
+    green = Color('verde')
+    if green.is_hsv_empty():
+        green.select(video.frame_enhanced, WAITKEY_DELAY)
 
-    # pink = Color('rosa', min_area=5)
-    # pink.select(video.frame_enhanced, WAITKEY_DELAY)
+    blue = Color('azul')
+    if blue.is_hsv_empty():
+        blue.select(video.frame_enhanced, WAITKEY_DELAY)
 
-    # robot = Robot('A', green, pink, cte)
+    pink = Color('rosa', min_area=5)
+    if pink.is_hsv_empty():
+        pink.select(video.frame_enhanced, WAITKEY_DELAY)
+
+    yellow = Color('amarelo', min_area=5)
+    if yellow.is_hsv_empty():
+        yellow.select(video.frame_enhanced, WAITKEY_DELAY)
+
+    robot_a1 = Robot('A1', green, pink, cte)
+    robot_a2 = Robot('A2', green, yellow, cte)
+    robot_b1 = Robot('B1', blue, pink, cte)
+    robot_b2 = Robot('B2', blue, yellow, cte)
     ball = Ball(orange, cte)
 
     while True:
@@ -48,7 +61,10 @@ def main():
 
         video.update_frame()
 
-        # robot.find_pose(video.frame, video.frame_hsv)
+        robot_a1.find_pose(video.frame, video.frame_hsv)
+        robot_a2.find_pose(video.frame, video.frame_hsv)
+        robot_b1.find_pose(video.frame, video.frame_hsv)
+        robot_b2.find_pose(video.frame, video.frame_hsv)
         ball.find_pose(video.frame, video.frame_hsv)
 
         key = video.show_frame()
