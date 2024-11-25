@@ -1,12 +1,17 @@
-#!/usr/bin/env python3
-
 import numpy as np
 import os
+from typing import Union
 
 folder_path = "data"
 
 
-def file_read(name):
+def file_read(name: str) -> np.ndarray:
+    """
+    Lê um arquivo .npy contendo um array de números. Se o arquivo não for encontrado, um array vazio é retornado.
+
+    @param name: O nome do arquivo a ser lido.
+    @return: Um array NumPy contendo os dados lidos do arquivo, ou um array vazio se o arquivo não for encontrado ou houver erro ao carregar.
+    """
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
         print(f"Folder created at {folder_path}")
@@ -29,7 +34,14 @@ def file_read(name):
     return data
 
 
-def file_write(name, data):
+def file_write(name: str, data: Union[np.ndarray, list]) -> None:
+    """
+    Salva os dados em um arquivo .npy. Se a pasta não existir, ela será criada.
+
+    @param name: O nome do arquivo onde os dados serão salvos.
+    @param data: Os dados a serem salvos, que podem ser um array NumPy ou uma lista.
+    @return: None
+    """
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
         print(f"Folder created at {folder_path}")
@@ -39,31 +51,3 @@ def file_write(name, data):
     # Salvar os dados como um arquivo .npy (formato binário eficiente)
     np.save(file_path, np.array(data))
     print(f"Os números foram salvos em '{name}'.")
-
-
-def main():
-    # Certifique-se de que o diretório existe
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
-    file_data = file_read('test.npy')
-
-    if file_data.size == 0:  # Verifica se o arquivo está vazio ou não existe
-        data = []
-
-        while True:
-            try:
-                num = input("Digite um número (ou 'sair' para finalizar): ")
-                if num.lower() == 'sair':
-                    break
-                num = float(num)
-                data.append(num)
-
-            except ValueError:
-                print("Por favor, digite um número válido.")
-
-        file_write('test.npy', data)
-
-
-if __name__ == '__main__':
-    main()

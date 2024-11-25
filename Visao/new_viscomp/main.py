@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
-# import time
+import time
 import cv2 as cv
-# import numpy as np
+import numpy as np
 from src.viscomp import VisComp
 from src.video import Video
-# from src.color import Color
-# from src.calibration import calibrate
-# from src.robot import Robot
-# from src.ball import Ball
 
 # Video constructor arguments
 CAMERA_ID = '../testes/new/output.avi'
@@ -29,7 +25,7 @@ def main():
     viscomp = VisComp(video.frame_enhanced, WAITKEY_DELAY)
 
     while True:
-        # begin = time.time()
+        begin = time.time()
 
         video.update_frame()
         poses = viscomp.find_poses(video.frame, video.frame_hsv)
@@ -40,9 +36,11 @@ def main():
         if key == ord('q'):
             break
 
-        # end = time.time()
-        # elapsed_time = end - begin
-        # print(f'tempo da iteração: {elapsed_time:.6f} seg')
+        end = time.time()
+        elapsed_time = end - begin
+        print(f'tempo da iteração: {elapsed_time:.6f} seg')
+
+    cv.destroyWindow(window_name)
 
 
 if __name__ == '__main__':
