@@ -7,10 +7,10 @@ from src.calibration import uv_to_xy
 class Ball:
     def __init__(self, color, cte):
         self.color = color
-        self.pose = {'x': None, 'y': None}
+        self.pose = [None, None]
         self.cte = cte
 
-        self.pub = Publisher('ball')
+        # self.pub = Publisher('ball')
 
     # Função de callback para quando a conexão for bem-sucedida
     def __on_connect(self, client, userdata, flags, rc):
@@ -27,14 +27,16 @@ class Ball:
             print('Ball not found')
             return
 
-        self.pose['x'], self.pose['y'] = uv_to_xy(self.color.uv, self.cte)
+        self.pose[0], self.pose[1] = uv_to_xy(self.color.uv, self.cte)
 
         cv.circle(frame, self.color.uv, 3, (255, 0, 0), -1)
         # text = f"ball (u,v) = {self.color.uv}"
-        text = f"ball (x,y) = {self.pose['x']},{self.pose['y']}"
+        text = f"ball {self.pose[0]},{self.pose[1]}"
         cv.putText(frame, text, self.color.uv, cv.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1)
 
-        self.pub.publish(self.pose.values())
+        # self.pub.publish(self.pose.values())
         # Transformando os valores (floats) em inteiros e, em seguida, criando a string
         # msg = ', '.join(map(lambda x: str(int(x)), self.pose.values()))
         # self.client.publish('ball', msg)
+
+        return self.pose

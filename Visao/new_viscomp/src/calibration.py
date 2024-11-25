@@ -12,6 +12,7 @@ def calibrate(xy_points, frame_enhanced, waitKey_delay):
     uv_points = file_read(FILE_NAME)
 
     if not uv_points.any():
+        uv_points = []
         window_name = "Clique no ponto desejado para calibracao"
         cv.namedWindow(window_name)
 
@@ -78,6 +79,6 @@ def uv_to_xy(uv, cte):
     coefs = np.vstack([cte[0], cte[1]])
     imag = np.hstack((np.ones(1), np.array(uv), np.array(uv[0]**2),
                      np.array(uv[1]**2)))[:, np.newaxis]
-    out = (coefs@imag).T
+    out = (coefs @ imag).T
 
-    return np.array(out[0].round(0), dtype=np.int_).tolist()
+    return np.array(np.round(out[0]).astype(int), dtype=np.int_).tolist()

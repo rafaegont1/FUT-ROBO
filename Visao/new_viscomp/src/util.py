@@ -3,11 +3,15 @@
 import numpy as np
 import os
 
-file_dir = "data"
+folder_path = "data"
 
 
 def file_read(name):
-    file_path = os.path.join(file_dir, name)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Folder created at {folder_path}")
+
+    file_path = os.path.join(folder_path, name)
 
     try:
         # Carregar o array de números do arquivo .npy
@@ -26,7 +30,11 @@ def file_read(name):
 
 
 def file_write(name, data):
-    file_path = os.path.join(file_dir, name)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Folder created at {folder_path}")
+
+    file_path = os.path.join(folder_path, name)
 
     # Salvar os dados como um arquivo .npy (formato binário eficiente)
     np.save(file_path, np.array(data))
@@ -35,8 +43,8 @@ def file_write(name, data):
 
 def main():
     # Certifique-se de que o diretório existe
-    if not os.path.exists(file_dir):
-        os.makedirs(file_dir)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
     file_data = file_read('test.npy')
 

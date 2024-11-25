@@ -11,14 +11,15 @@ class Robot:
         @param xoff: distância (em mm) entre o centro do landmark, até o eixo de
         rotação do robô
         '''
+        self.name = name
         self.team_color = team_color
         self.player_color = player_color
         self.cte = cte
         self.xoff = xoff
         self.roi_sz = roi_sz
-        self.pose = {'x': None, 'y': None, 'theta': None}
+        self.pose = [None, None, None]
 
-        self.pub = Publisher(f'robot_{name}')
+        # self.pub = Publisher(f'robot_{name}')
 
     # Função de callback para quando a conexão for bem-sucedida
     def __on_connect(self, client, userdata, flags, rc):
@@ -53,19 +54,21 @@ class Robot:
 
         if self.player_color.uv is None:
             print('robo não encontrado')  # rascunho
-            self.pose = {'x': None, 'y': None, 'theta': None}
+            self.pose = []
         else:
             rx, ry = uv_to_xy(team_centroid, self.cte)
             theta_rad = self.__get_theta()
 
-            self.pose['x'] = rx - (self.xoff * np.cos(theta_rad))
-            self.pose['y'] = ry + (self.xoff * np.sin(theta_rad))
-            self.pose['theta'] = np.degrees(theta_rad)
+            self.pose = [
+                int(rx - (self.xoff * np.cos(theta_rad))),  # x
+                int(ry + (self.xoff * np.sin(theta_rad))),  # y
+                int(np.degrees(theta_rad))                  # theta
+            ]
 
             self.__draw_on_frame(frame)
-            self.pub.publish(self.pose.values())
+            # self.pub.publish(self.pose.values())
 
-        # return self.pose
+        return self.pose
 
     def __get_roi(self, frame_hsv, uv):
         # Limites verticais (linhas - coordenada v)
@@ -93,15 +96,13 @@ class Robot:
         # Calcula o ângulo em radianos usando arctan2
         theta_rad = -np.arctan2(delta_v, delta_u)  # TODO: verificar se tem o sinal de menos mesmo
 
-        # print(f'delta_v = {self.player_color.uv[1]} - {self.team_color.uv[1]} = {delta_v}')
-        # print(f'delta_u = {self.player_color.uv[0]} - {self.team_color.uv[0]} = {delta_u}')
-        # print(f'theta_rad = {theta_rad}')
+        # Converte o valor de theta_rad para inteiro
+        theta_int = int(np.round(theta_rad))
 
-        return theta_rad
+        return theta_int
 
     def __draw_on_frame(self, frame):
         cv.circle(frame, self.team_color.uv, 3, (0, 0, 255), -1)
-        text = "(x,y,theta) = {:.2f},{:.2f},{:.2f}".format(
-            self.pose['x'], self.pose['y'], self.pose['theta'])
+        text = f"{self.name} {self.pose[0]},{self.pose[1]},{self.pose[2]}"
         cv.putText(frame, text, self.team_color.uv, cv.FONT_HERSHEY_PLAIN,
                    0.8, (255, 255, 0), 1)
