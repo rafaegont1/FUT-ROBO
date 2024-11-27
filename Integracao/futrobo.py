@@ -123,7 +123,7 @@ class ROBO:
 #rd = ROBO('test.mosquitto.org', 1883)
 rd = ROBO('192.168.137.1', 1884)
 
-rd.moveLinear(1000)
+#rd.moveLinear(1000)
 
 # time.sleep(4)
 
@@ -139,6 +139,6 @@ rd.moveLinear(1000)
 
 # time.sleep(2)
 
-# rd.kick(100)
+rd.kick(100)
 
 time.sleep(1)
