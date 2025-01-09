@@ -39,12 +39,12 @@ class Color:
         """
         return not (self.lower_hsv.any() and self.upper_hsv.any())
 
-    def select(self, frame_enhanced: np.ndarray, waitKey_delay: int) -> None:
+    def select(self, frame: np.ndarray, waitKey_delay: int) -> None:
         """
         Permite ao usuário selecionar a cor na imagem clicando na região desejada. 
         A cor é então convertida para o espaço HSV e os limites lower/upper HSV são calculados.
 
-        @param frame_enhanced: Imagem do frame a ser exibida para o usuário.
+        @param frame: Imagem do frame a ser exibida para o usuário.
         @param waitKey_delay: Delay de espera entre os quadros para interação do usuário.
         """
         select_window_name = f"Clique na cor desejada para '{self.name}'"
@@ -52,8 +52,8 @@ class Color:
 
         try:
             while not self.lower_hsv.any() and not self.upper_hsv.any():
-                cv.imshow(select_window_name, frame_enhanced)
-                cv.setMouseCallback(select_window_name, self.__click_event, param=frame_enhanced)
+                cv.imshow(select_window_name, frame)
+                cv.setMouseCallback(select_window_name, self.__click_event, param=frame)
                 key = cv.waitKey(waitKey_delay)
                 if key == ord('q'):
                     break
@@ -61,7 +61,7 @@ class Color:
             cv.destroyWindow(select_window_name)
 
         # Converte para HSV e aplica a máscara
-        frame_hsv = cv.cvtColor(frame_enhanced, cv.COLOR_BGR2HSV)
+        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         mask = cv.inRange(frame_hsv, self.lower_hsv, self.upper_hsv)
         frame_hsv_masked = cv.bitwise_and(frame_hsv, frame_hsv, mask=mask)
         res = cv.cvtColor(frame_hsv_masked, cv.COLOR_HSV2BGR)

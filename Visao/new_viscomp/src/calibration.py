@@ -9,14 +9,14 @@ uv_points: List[List[int]] = []  # Vetor de Pontos na Imagem (lista de coordenad
 
 def calibrate(
     xy_points: List[Tuple[float, float]], 
-    frame_enhanced: np.ndarray, 
+    frame: np.ndarray, 
     waitKey_delay: int
 ) -> np.ndarray:
     """
     Realiza a calibração do sistema, coletando pontos UV na imagem e calculando a constante de calibração.
 
     @param xy_points: Lista de coordenadas (x, y) no mundo real (em milímetros).
-    @param frame_enhanced: Imagem com o frame melhorado, para exibição durante a calibração.
+    @param frame: Imagem com o frame melhorado, para exibição durante a calibração.
     @param waitKey_delay: Tempo de espera entre quadros (em milissegundos) para interação do usuário.
     
     @return: Constantes de calibração (cte), uma matriz numpy com os coeficientes de calibração.
@@ -33,8 +33,8 @@ def calibrate(
 
         # Coleta pontos UV clicando na imagem até que tenhamos o número de pontos necessário
         while len(uv_points) < len(xy_points):
-            cv.imshow(window_name, frame_enhanced)
-            cv.setMouseCallback(window_name, calibrate_click_event, param=frame_enhanced)
+            cv.imshow(window_name, frame)
+            cv.setMouseCallback(window_name, calibrate_click_event, param=frame)
             cv.waitKey(waitKey_delay)
 
         cv.destroyWindow(window_name)

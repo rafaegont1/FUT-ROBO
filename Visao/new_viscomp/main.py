@@ -22,7 +22,7 @@ def main():
 
     video.update_frame()
 
-    viscomp = VisComp(video.frame_enhanced, WAITKEY_DELAY)
+    viscomp = VisComp(video.frame, WAITKEY_DELAY)
 
     while True:
         begin = time.time()

@@ -31,7 +31,7 @@ class Video:
             raise RuntimeError("Não foi possível abrir a câmera.")
 
         self.frame: np.ndarray = None
-        self.frame_enhanced: np.ndarray = None
+        # self.frame_enhanced: np.ndarray = None
         self.frame_hsv: np.ndarray = None
 
         self.window_name: str = window_name
@@ -63,8 +63,9 @@ class Video:
             print("Rewinding video...")  # rascunho
             return  # rascunho
 
-        self.frame_enhanced = self.__enhance_contrast()
-        self.frame_hsv = cv.cvtColor(self.frame_enhanced, cv.COLOR_BGR2HSV)
+        # self.frame_enhanced = self.__enhance_contrast()
+        # self.frame_hsv = cv.cvtColor(self.frame_enhanced, cv.COLOR_BGR2HSV)
+        self.frame_hsv = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
 
     def show_frame(self) -> int:
         """

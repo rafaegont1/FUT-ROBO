@@ -12,36 +12,36 @@ XY_POINTS = [(0, 0), (-1190, 800), (1190, 800), (1190, -800), (-1190, -800)]
 
 
 class VisComp:
-    def __init__(self, frame_enhanced: np.ndarray, waitKey_delay: int) -> None:
+    def __init__(self, frame: np.ndarray, waitKey_delay: int) -> None:
         """
         Constrói um objeto VisComp, responsável por inicializar os robôs e a bola com base nas cores 
         selecionadas e na calibração da câmera.
 
-        @param frame_enhanced: Imagem do frame a ser utilizada para calibração e seleção de cores.
+        @param frame: Imagem do frame a ser utilizada para calibração e seleção de cores.
         @param waitKey_delay: Delay de espera entre os quadros para interação do usuário.
         """
-        cte = calibrate(XY_POINTS, frame_enhanced, waitKey_delay)
+        cte = calibrate(XY_POINTS, frame, waitKey_delay)
 
         # Inicialização das cores para cada objeto (laranja, verde, azul, rosa, amarelo)
         orange = Color('laranja', min_area=5, hs_tolerance=(5, 75))
         if orange.is_hsv_empty():
-            orange.select(frame_enhanced, waitKey_delay)
+            orange.select(frame, waitKey_delay)
 
         green = Color('verde', min_area=10)
         if green.is_hsv_empty():
-            green.select(frame_enhanced, waitKey_delay)
+            green.select(frame, waitKey_delay)
 
         blue = Color('azul', min_area=10)
         if blue.is_hsv_empty():
-            blue.select(frame_enhanced, waitKey_delay)
+            blue.select(frame, waitKey_delay)
 
         pink = Color('rosa', min_area=1, hs_tolerance=(10, 65))
         if pink.is_hsv_empty():
-            pink.select(frame_enhanced, waitKey_delay)
+            pink.select(frame, waitKey_delay)
 
         yellow = Color('amarelo', min_area=1, hs_tolerance=(5, 65))
         if yellow.is_hsv_empty():
-            yellow.select(frame_enhanced, waitKey_delay)
+            yellow.select(frame, waitKey_delay)
 
         # Inicialização dos robôs e da bola
         self.robot_aa: Robot = Robot('AA', blue, yellow, cte)
