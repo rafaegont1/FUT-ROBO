@@ -2,46 +2,24 @@
 #define COLOR_HPP
 
 #include <opencv2/opencv.hpp>
-#include <string>
-#include <vector>
-#include <tuple>
-#include <optional>
+#include "Video.hpp"
 
 class Color {
 public:
-    struct Pose {
-        int u;
-        int v;
-    };
+    Color(const std::string& name, double min_area = 100.0);
 
-    // Constructor
-    Color(
-        const std::string& name,
-        int min_area = 100,
-        std::tuple<int, int> hs_tolerance = {10, 75}
-    );
-
-    // Check if the HSV ranges are empty
-    bool is_hsv_empty() const;
-
-    // Select the color by clicking on the image
-    void select(cv::Mat& frame_enhanced, int waitKey_delay);
-
-    // Find centroids of the color in the HSV space
-    std::optional<std::vector<Pose>> find_centroid(const cv::Mat& img_hsv);
+    void select(const Video::Frame& frame, const std::string& config_file);
+    std::optional<cv::Point> find_centroid(const cv::Mat& frame_hsv);
 
 private:
-    // Callback function for mouse events (for selecting color)
-    static void click_event(int event, int x, int y, int flags, void* param);
+    static void click_event(int event, int x, int y, int flags, void* userdata);
 
-    std::string name;  // Color name
-    int min_area;  // Minimum area of contour to consider
-    std::tuple<int, int> hs_tolerance;  // Tolerance for HSV values
-    std::string lower_hsv_file;  // File path for lower HSV range
-    std::string upper_hsv_file;  // File path for upper HSV range
-    cv::Mat lowerb;  // Lower HSV range
-    cv::Mat upperb;  // Upper HSV range
-    std::optional<std::vector<std::tuple<int, int>>> uv;  // Coordinates of centroids (if any)
+    std::string name;
+    double min_area;
+    std::pair<int, int> hs_tolerance;
+    cv::Scalar lowerb;
+    cv::Scalar upperb;
+    std::optional<cv::Point> centroid;
 };
 
 #endif // COLOR_HPP
