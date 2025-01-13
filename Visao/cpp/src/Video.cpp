@@ -49,3 +49,13 @@ int Video::show()
     cv::imshow(win_name_, frame.raw);
     return cv::waitKey(win_delay_);
 }
+
+std::string Video::win_name() const
+{
+    return win_name_;
+}
+
+int Video::win_delay() const
+{
+    return win_delay_;
+}

@@ -4,61 +4,61 @@ Color::Color(const std::string& name, double min_area) : name{name}, min_area{mi
 {
 }
 
-void Color::select(const Video::Frame& frame, const std::string& config_file)
+void Color::select(Video& video, const std::string& config_file)
 {
     cv::FileStorage fs(config_file, cv::FileStorage::READ);
     int hue_tol = (int)fs["color"]["hue_tol"];
     int sat_tol = (int)fs["color"]["sat_tol"];
     fs.release();
 
-    cv::Point click_point{-1, 0};
-    const std::string select_win_name = "Clique na cor desejada para '" + name + "'";
-    cv::namedWindow(select_win_name);
+    std::optional<cv::Point> click_point = std::nullopt;
 
-    try {
-        while (click_point.x == -1) {
-            cv::imshow(select_win_name, frame.raw);
-            cv::setMouseCallback(select_win_name, click_event, &click_point);
-            int key = cv::waitKey(50);
-            if (key == 27) {
-                break;
-            }
-        }
-    } catch (...) {
-        cv::destroyWindow(select_win_name);
-        throw;
-    }
+    do {
+        video.update();
+        cv::imshow(video.win_name(), video.frame.raw);
+        cv::setMouseCallback(video.win_name(), click_event, &click_point);
+        int key = cv::waitKey(video.win_delay());
+        if (key == 27) break;
+    } while (!click_point.has_value());
 
-    cv::destroyWindow(select_win_name);
-
-    cv::Vec3b click_hsv = frame.hsv.at<cv::Vec3b>(click_point.y, click_point.x);
+    cv::Vec3b click_hsv = video.frame.hsv.at<cv::Vec3b>(click_point->y, click_point->x);
+    // std::cout << "Click Point: (" << click_point->x << ", " << click_point->y << ")" // rascunho
+    //       << " -> H: " << static_cast<int>(click_hsv[0]) // rascunho
+    //       << ", S: " << static_cast<int>(click_hsv[1]) // rascunho
+    //       << ", V: " << static_cast<int>(click_hsv[2]) << std::endl; // rascunho
 
     lowerb = cv::Scalar(
         std::clamp(static_cast<int>(click_hsv[0]) - hue_tol, 0, 179),
         std::clamp(static_cast<int>(click_hsv[1]) - sat_tol, 0, 255),
         20
     );
+    // std::cout << "lowerb: (" << static_cast<int>(lowerb[0]) << ", " // rascunho
+    //                          << static_cast<int>(lowerb[1]) << ", " // rascunho
+    //                          << static_cast<int>(lowerb[2]) << ")" // rascunho
+    //                          << std::endl; // rascunho
 
     upperb = cv::Scalar(
         std::clamp(static_cast<int>(click_hsv[0]) + hue_tol, 0, 179),
         std::clamp(static_cast<int>(click_hsv[1]) + sat_tol, 0, 255),
         255
     );
-
-    cv::Mat mask;
-    cv::inRange(frame.hsv, lowerb, upperb, mask);
-
-    cv::Mat frame_hsv_masked;
-    cv::bitwise_and(frame.hsv, frame.hsv, frame_hsv_masked, mask);
+    // std::cout << "upperb: (" << static_cast<int>(upperb[0]) << ", " // rascunho
+    //                          << static_cast<int>(upperb[1]) << ", " // rascunho
+    //                          << static_cast<int>(upperb[2]) << ")" // rascunho
+    //                          << std::endl; // rascunho
 
 // #if defined(DEBUG)
+    cv::Mat mask;
+    cv::inRange(video.frame.hsv, lowerb, upperb, mask);
+
+    cv::Mat frame_hsv_masked;
+    cv::bitwise_and(video.frame.hsv, video.frame.hsv, frame_hsv_masked, mask);
+
     cv::Mat res;
     cv::cvtColor(frame_hsv_masked, res, cv::COLOR_HSV2BGR);
 
-    const std::string isolation_window_name = "Isolamento da cor selecionada";
-    cv::imshow(isolation_window_name, res);
+    cv::imshow(video.win_name(), res);
     cv::waitKey(0);
-    cv::destroyWindow(isolation_window_name);
 // #endif // defined(DEBUG)
 }
 
@@ -69,28 +69,30 @@ std::optional<cv::Point> Color::find_centroid(const cv::Mat& frame_hsv) {
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    centroid = std::nullopt;
-
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
+        // std::cout << "AREA: " << area << std::endl; // rascunho
+
         if (area >= min_area) {
-            std::cout << "area >= min_area\n";
+            // std::cout << "area >= min_area\n";
             cv::Moments M = cv::moments(contour);
-            centroid->x = static_cast<int>(M.m10 / M.m00);
-            centroid->y = static_cast<int>(M.m01 / M.m00);
-            break;
+
+            if (M.m00 != 0) {
+                int x = static_cast<int>(M.m10 / M.m00);
+                int y = static_cast<int>(M.m01 / M.m00);
+                return cv::Point(x, y);
+            }
         }
     }
 
-    return centroid;
+    return std::nullopt;
 }
 
 void Color::click_event(int event, int x, int y, int flags, void* userdata) {
     (void)flags; // prevent unused parameter warning
 
     if (event == cv::EVENT_LBUTTONDOWN) {
-        auto clicked_point = static_cast<cv::Point*>(userdata);
-        clicked_point->x = x;
-        clicked_point->y = y;
+        auto clicked_point = static_cast<std::optional<cv::Point>*>(userdata);
+        *clicked_point = cv::Point(x, y);
     }
 }

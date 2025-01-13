@@ -17,6 +17,9 @@ public:
     void update();
     int show();
 
+    std::string win_name() const;
+    int win_delay() const;
+
     Frame frame;
 
 private:
