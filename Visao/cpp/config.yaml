@@ -1,0 +1,14 @@
+%YAML:1.0
+---
+color:
+    hue_tol: 10
+    sat_tol: 75
+
+camera:
+    width: 800
+    height: 600
+    fps: 30
+
+window:
+    name: window
+    delay: 40

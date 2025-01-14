@@ -4,29 +4,30 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 
-constexpr std::string config_file = "config.yaml";
+static const std::string config_file = "../config.yaml";
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cerr << "usage: " << argv[0] << " <config.yaml file>" << std::endl;
+    }
+
     Video video(config_file);
-    Color green("verde", 1.0);
+    Color green("verde", 1, 250.0);
     int key;
+
+#ifndef DEBUG
+    std::cout << "Debug mode is enabled!" << std::endl;
+#else
+    std::cout << "Debug mode is disabled!" << std::endl;
+#endif
 
     try {
         green.select(video, config_file);
 
         do {
             video.update();
-            std::optional<cv::Point> c = green.find_centroid(video.frame.hsv);
-            if (c.has_value()) {
-                std::cout << "x: " << c.value().x << '\n' 
-                          << "y: " << c.value().y << '\n';
-                cv::Point point(c.value().x, c.value().y);
-                cv::circle(video.frame.raw, point, 8, cv::Scalar(255, 0, 0), 5); // rascunho
-                std::string text = std::to_string(point.x) + ',' + std::to_string(point.y);
-                cv::putText(video.frame.raw, text, point, cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(255, 0, 0));
-            } else {
-                std::cout << "green not found\n";
-            }
+
+            green.find_centroid(video);
 
             key = video.show();
         } while (key != 27);

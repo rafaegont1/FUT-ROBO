@@ -23,8 +23,12 @@ file(GLOB SOURCES "src/*.cpp")
 
 # Create the executable and link it to OpenCV libraries
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+# Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     include
     ${OpenCV_INCLUDE_DIRS}
 )
+
+# Link libraries
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})

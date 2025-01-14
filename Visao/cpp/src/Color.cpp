@@ -1,6 +1,9 @@
 #include "Color.hpp"
 
-Color::Color(const std::string& name, double min_area) : name{name}, min_area{min_area}
+#include <optional>
+
+Color::Color(const std::string& name, std::size_t size, double min_area)
+: name_{name}, size_{size}, min_area_{min_area}
 {
 }
 
@@ -27,7 +30,7 @@ void Color::select(Video& video, const std::string& config_file)
     //       << ", S: " << static_cast<int>(click_hsv[1]) // rascunho
     //       << ", V: " << static_cast<int>(click_hsv[2]) << std::endl; // rascunho
 
-    lowerb = cv::Scalar(
+    lowerb_ = cv::Scalar(
         std::clamp(static_cast<int>(click_hsv[0]) - hue_tol, 0, 179),
         std::clamp(static_cast<int>(click_hsv[1]) - sat_tol, 0, 255),
         20
@@ -37,7 +40,7 @@ void Color::select(Video& video, const std::string& config_file)
     //                          << static_cast<int>(lowerb[2]) << ")" // rascunho
     //                          << std::endl; // rascunho
 
-    upperb = cv::Scalar(
+    upperb_ = cv::Scalar(
         std::clamp(static_cast<int>(click_hsv[0]) + hue_tol, 0, 179),
         std::clamp(static_cast<int>(click_hsv[1]) + sat_tol, 0, 255),
         255
@@ -49,7 +52,7 @@ void Color::select(Video& video, const std::string& config_file)
 
 // #if defined(DEBUG)
     cv::Mat mask;
-    cv::inRange(video.frame.hsv, lowerb, upperb, mask);
+    cv::inRange(video.frame.hsv, lowerb_, upperb_, mask);
 
     cv::Mat frame_hsv_masked;
     cv::bitwise_and(video.frame.hsv, video.frame.hsv, frame_hsv_masked, mask);
@@ -62,30 +65,41 @@ void Color::select(Video& video, const std::string& config_file)
 // #endif // defined(DEBUG)
 }
 
-std::optional<cv::Point> Color::find_centroid(const cv::Mat& frame_hsv) {
+const std::vector<cv::Point>& Color::find_centroid(Video& video) {
     cv::Mat mask;
-    cv::inRange(frame_hsv, lowerb, upperb, mask);
+    cv::inRange(video.frame.hsv, lowerb_, upperb_, mask);
 
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    centroids_.clear();
 
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         // std::cout << "AREA: " << area << std::endl; // rascunho
 
-        if (area >= min_area) {
+        if (area >= min_area_) {
             // std::cout << "area >= min_area\n";
             cv::Moments M = cv::moments(contour);
 
             if (M.m00 != 0) {
                 int x = static_cast<int>(M.m10 / M.m00);
                 int y = static_cast<int>(M.m01 / M.m00);
-                return cv::Point(x, y);
+                centroids_.emplace_back(x, y);
+// #ifdef DEBUG
+                std::cout << "x, y = " << x << ", " << y << std::endl;
+                cv::circle(video.frame.raw, centroids_.back(), 5, cv::Scalar(255, 0, 0), 3);
+                const std::string text = std::to_string(x) + ',' + std::to_string(y);
+                cv::putText(video.frame.raw, text, centroids_.back(), cv::FONT_HERSHEY_PLAIN, 0.8, cv::Scalar(255, 255, 0));
+// #endif
+                if (centroids_.size() == size_) {
+                    break;
+                }
             }
         }
     }
 
-    return std::nullopt;
+    return centroids_;
 }
 
 void Color::click_event(int event, int x, int y, int flags, void* userdata) {

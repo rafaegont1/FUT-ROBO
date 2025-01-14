@@ -2,24 +2,26 @@
 #define COLOR_HPP
 
 #include <opencv2/opencv.hpp>
-#include <optional>
+#include <vector>
 #include "Video.hpp"
 
 class Color {
 public:
-    Color(const std::string& name, double min_area = 100.0);
+    Color(const std::string& name, std::size_t size, double min_area = 100.0);
 
     void select(Video& video, const std::string& config_file);
-    std::optional<cv::Point> find_centroid(const cv::Mat& frame_hsv);
+    const std::vector<cv::Point>& find_centroid(Video& video);
+    bool found();
 
 private:
     static void click_event(int event, int x, int y, int flags, void* userdata);
 
-    std::string name;
-    double min_area;
-    cv::Scalar lowerb;
-    cv::Scalar upperb;
-    std::optional<cv::Point> centroid;
+    std::string name_;
+    std::size_t size_;
+    double min_area_;
+    cv::Scalar lowerb_;
+    cv::Scalar upperb_;
+    std::vector<cv::Point> centroids_;
 };
 
 #endif // COLOR_HPP
