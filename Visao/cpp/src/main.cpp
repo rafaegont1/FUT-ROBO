@@ -1,8 +1,9 @@
-#include "Video.hpp"
-#include "Color.hpp"
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
+#include "Video.hpp"
+#include "Color.hpp"
+#include "Team.hpp"
 
 static const std::string config_file = "../config.yaml";
 
@@ -12,22 +13,23 @@ int main(int argc, char* argv[]) {
     }
 
     Video video(config_file);
-    Color green("verde", 1, 250.0);
     int key;
 
-#ifndef DEBUG
-    std::cout << "Debug mode is enabled!" << std::endl;
-#else
-    std::cout << "Debug mode is disabled!" << std::endl;
-#endif
+    Color green("verde");
+    Color pink("rosa");
+    Color yellow("amarelo");
+
+    green.select(video, config_file);
+    pink.select(video, config_file);
+    yellow.select(video, config_file);
+
+    Team team_green(green, pink, yellow);
 
     try {
-        green.select(video, config_file);
-
         do {
             video.update();
 
-            green.find_centroid(video);
+            team_green.find_centroids(video);
 
             key = video.show();
         } while (key != 27);

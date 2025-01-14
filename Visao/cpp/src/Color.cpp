@@ -2,8 +2,7 @@
 
 #include <optional>
 
-Color::Color(const std::string& name, std::size_t size, double min_area)
-: name_{name}, size_{size}, min_area_{min_area}
+Color::Color(const std::string& name) : name_{name}
 {
 }
 
@@ -18,6 +17,8 @@ void Color::select(Video& video, const std::string& config_file)
 
     do {
         video.update();
+        const std::string win_text = "Selecione a cor " + name_;
+        cv::putText(video.frame.raw, win_text, cv::Point(0, video.frame.raw.rows - 10), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(80, 80, 80), 2);
         cv::imshow(video.win_name(), video.frame.raw);
         cv::setMouseCallback(video.win_name(), click_event, &click_point);
         int key = cv::waitKey(video.win_delay());
@@ -65,41 +66,42 @@ void Color::select(Video& video, const std::string& config_file)
 // #endif // defined(DEBUG)
 }
 
-const std::vector<cv::Point>& Color::find_centroid(Video& video) {
+const std::vector<cv::Point> Color::find_centroids(const cv::Mat& frame_hsv, double min_area, std::size_t size)
+{
+    std::vector<cv::Point> centroids;
+
     cv::Mat mask;
-    cv::inRange(video.frame.hsv, lowerb_, upperb_, mask);
+    cv::inRange(frame_hsv, lowerb_, upperb_, mask);
 
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    centroids_.clear();
 
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         // std::cout << "AREA: " << area << std::endl; // rascunho
 
-        if (area >= min_area_) {
+        if (area >= min_area) {
             // std::cout << "area >= min_area\n";
             cv::Moments M = cv::moments(contour);
 
             if (M.m00 != 0) {
                 int x = static_cast<int>(M.m10 / M.m00);
                 int y = static_cast<int>(M.m01 / M.m00);
-                centroids_.emplace_back(x, y);
+                centroids.emplace_back(x, y);
 // #ifdef DEBUG
-                std::cout << "x, y = " << x << ", " << y << std::endl;
-                cv::circle(video.frame.raw, centroids_.back(), 5, cv::Scalar(255, 0, 0), 3);
-                const std::string text = std::to_string(x) + ',' + std::to_string(y);
-                cv::putText(video.frame.raw, text, centroids_.back(), cv::FONT_HERSHEY_PLAIN, 0.8, cv::Scalar(255, 255, 0));
+                // std::cout << "x, y = " << x << ", " << y << std::endl;
+                // cv::circle(video.frame.raw, centroids.back(), 5, cv::Scalar(255, 0, 0), 3);
+                // const std::string text = std::to_string(x) + ',' + std::to_string(y);
+                // cv::putText(video.frame.raw, text, centroids.back(), cv::FONT_HERSHEY_PLAIN, 0.8, cv::Scalar(255, 255, 0));
 // #endif
-                if (centroids_.size() == size_) {
+                if (centroids.size() == size) {
                     break;
                 }
             }
         }
     }
 
-    return centroids_;
+    return centroids;
 }
 
 void Color::click_event(int event, int x, int y, int flags, void* userdata) {
@@ -109,4 +111,9 @@ void Color::click_event(int event, int x, int y, int flags, void* userdata) {
         auto clicked_point = static_cast<std::optional<cv::Point>*>(userdata);
         *clicked_point = cv::Point(x, y);
     }
+}
+
+const std::string& Color::name()
+{
+    return name_;
 }
