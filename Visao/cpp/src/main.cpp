@@ -19,9 +19,9 @@ int main(int argc, char* argv[]) {
     Color pink("rosa");
     Color yellow("amarelo");
 
-    green.select(video, config_file);
-    pink.select(video, config_file);
-    yellow.select(video, config_file);
+    if (!green.file_lodead()) green.select(video, config_file);
+    if (!pink.file_lodead()) pink.select(video, config_file);
+    if (!yellow.file_lodead()) yellow.select(video, config_file);
 
     Team team_green(green, pink, yellow);
 

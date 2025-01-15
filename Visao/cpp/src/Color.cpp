@@ -4,11 +4,22 @@
 
 Color::Color(const std::string& name) : name_{name}
 {
+    cv::FileStorage fs(name_ + ".yaml", cv::FileStorage::READ);
+
+    if (fs.isOpened()) {
+        fs["lowerb"] >> lowerb_;
+        fs["upperb"] >> upperb_;
+        file_loaded_ = true;
+        fs.release();
+    }
 }
 
 void Color::select(Video& video, const std::string& config_file)
 {
-    cv::FileStorage fs(config_file, cv::FileStorage::READ);
+    std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
+    cv::FileStorage fs;
+
+    fs.open(config_file, cv::FileStorage::READ);
     int hue_tol = (int)fs["color"]["hue_tol"];
     int sat_tol = (int)fs["color"]["sat_tol"];
     fs.release();
@@ -36,6 +47,7 @@ void Color::select(Video& video, const std::string& config_file)
         std::clamp(static_cast<int>(click_hsv[1]) - sat_tol, 0, 255),
         20
     );
+    std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
     // std::cout << "lowerb: (" << static_cast<int>(lowerb[0]) << ", " // rascunho
     //                          << static_cast<int>(lowerb[1]) << ", " // rascunho
     //                          << static_cast<int>(lowerb[2]) << ")" // rascunho
@@ -51,6 +63,11 @@ void Color::select(Video& video, const std::string& config_file)
     //                          << static_cast<int>(upperb[2]) << ")" // rascunho
     //                          << std::endl; // rascunho
 
+    fs.open(name_ + ".yaml", cv::FileStorage::WRITE);
+    fs << "lowerb" << lowerb_;
+    fs << "upperb" << upperb_;
+    fs.release();
+
 // #if defined(DEBUG)
     cv::Mat mask;
     cv::inRange(video.frame.hsv, lowerb_, upperb_, mask);
@@ -62,7 +79,7 @@ void Color::select(Video& video, const std::string& config_file)
     cv::cvtColor(frame_hsv_masked, res, cv::COLOR_HSV2BGR);
 
     cv::imshow(video.win_name(), res);
-    cv::waitKey(0);
+    cv::waitKey();
 // #endif // defined(DEBUG)
 }
 
@@ -116,4 +133,9 @@ void Color::click_event(int event, int x, int y, int flags, void* userdata) {
 const std::string& Color::name()
 {
     return name_;
+}
+
+bool Color::file_lodead()
+{
+    return file_loaded_;
 }

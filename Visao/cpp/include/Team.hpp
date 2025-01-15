@@ -20,8 +20,13 @@ public:
     Player p2;
 
 private:
-    inline cv::Mat get_roi(const cv::Point& center, const Video& video);
-    inline void find_player(Team::Player& player, Video& video);
+    struct ROI {
+        cv::Mat frame_hsv;
+        cv::Point offset;
+    };
+
+    inline Team::ROI get_roi(const cv::Point& center, const Video& video);
+    inline void find_player(Team::Player& player, const Team::ROI& roi);
 
     std::string name_;
     Color team_color;
