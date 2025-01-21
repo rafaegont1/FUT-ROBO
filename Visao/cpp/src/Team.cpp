@@ -8,12 +8,28 @@ Team::Team(const Color& team_color, const Color& pink, const Color& yellow, cons
 {
     players_[0].color = pink;
     players_[1].color = yellow;
+    file_read();
 }
+
+void Team::file_read(const std::string& config_file)
+{
+    cv::FileStorage fs(config_file, cv::FileStorage::READ);
+
+    if (!fs.isOpened()) {
+        throw std::runtime_error("Couldn't open file " + config_file);
+    }
+
+    fs["color"]["rect_min_area"] >> rect_min_area_;
+    fs["color"]["circle_min_area"] >> circle_min_area_;
+
+    fs.release();
+}
+
 
 void Team::find_poses(Video& video)
 {
     std::vector<cv::Point> rect_centroids =
-        team_color.find_centroids(video.frame.hsv, 200.0, 2);
+        team_color.find_centroids(video.frame.hsv, rect_min_area_, 2);
     std::cout << "num of centroids: " << rect_centroids.size() << std::endl; // rascunho
 
     // p1.found = false;
@@ -29,28 +45,39 @@ void Team::find_poses(Video& video)
 
         for (auto& p : players_) {
             if (p.found) continue;
-            std::vector<cv::Point> centroid_circle_image = p.color.find_centroids(roi.frame_hsv, 10.0);
+
+            std::vector<cv::Point> centroid_circle_image = p.color.find_centroids(roi.frame_hsv, circle_min_area_);
             if (centroid_circle_image.empty()) continue;
-            p.centroid_rect_image = centroid_rect_image;
+
             std::cout << "Player " << p.color.name() << '\n'; // rascunho
             std::cout << "rect" << std::endl; // rascunho
+            p.centroid_rect_image = centroid_rect_image;
             p.centroid_rect_world = calib_.uv_to_xy(centroid_rect_image);
+
+            std::cout << "circle" << std::endl; // rascunho
             p.centroid_circle_image = centroid_circle_image[0];
             // Fix ROI offset
             p.centroid_circle_image.x += roi.offset.x;
             p.centroid_circle_image.y += roi.offset.y;
-            std::cout << "circle" << std::endl; // rascunho
-            cv::Point centroid_circle_world = calib_.uv_to_xy(p.centroid_circle_image);
-            p.theta = get_theta(p.centroid_rect_world, centroid_circle_world);
+            p.centroid_circle_world = calib_.uv_to_xy(p.centroid_circle_image);
+
+            p.theta = get_theta(p.centroid_rect_world, p.centroid_circle_world);
             std::cout << "theta: " << p.theta << " rad\n" // rascunho
                       << "theta: " << p.theta*180/M_PI << " °\n"; // rascunho
+
             video.draw_circle(
                 p.centroid_rect_image,
                 team_color.name() + '|' + p.color.name() + '=' + std::to_string(p.centroid_rect_world.x) + ',' + std::to_string(p.centroid_rect_world.y) + ',' + std::to_string(p.theta*180/M_PI)
             );
+
             p.found = true;
         }
     }
+}
+
+const std::array<Team::Player, 2>& Team::players()
+{
+    return players_;
 }
 
 inline Team::ROI Team::get_roi(const cv::Point& center, const Video& video)

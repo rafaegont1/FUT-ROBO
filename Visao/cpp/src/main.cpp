@@ -8,7 +8,8 @@
 
 static const std::string config_file = "../config.yaml";
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     if (argc < 2) {
         std::cerr << "usage: " << argv[0] << " <config.yaml file>" << std::endl;
     }

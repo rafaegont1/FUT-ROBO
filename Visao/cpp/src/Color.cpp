@@ -111,6 +111,8 @@ const std::vector<cv::Point> Color::find_centroids(const cv::Mat& frame_hsv, dou
         // std::cout << "AREA: " << area << std::endl; // rascunho
 
         if (area >= min_area) {
+            std::cout << "color: " << name_ << '\n' // rascunho
+                      << "area > min_area: " << area << std::endl; // rascunho
             // std::cout << "area >= min_area\n";
             cv::Moments M = cv::moments(contour);
 

@@ -9,6 +9,7 @@ class Team {
 public:
     struct Player {
         cv::Point centroid_circle_image;
+        cv::Point centroid_circle_world;
         cv::Point centroid_rect_image;
         cv::Point centroid_rect_world;
         double theta;
@@ -18,6 +19,7 @@ public:
 
     Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib);
     void find_poses(Video& video);
+    const std::array<Team::Player, 2>& players();
 
 private:
     struct ROI {
@@ -25,6 +27,7 @@ private:
         cv::Point offset;
     };
 
+    void file_read(const std::string& config_file = "../config.yaml");
     inline Team::ROI get_roi(const cv::Point& center, const Video& video);
     // inline void find_player(Team::Player& player, cv::Point& centroid, Video& video);
     inline double get_theta(const cv::Point& rect_point, const cv::Point& circle_point);
@@ -35,6 +38,8 @@ private:
     std::array<Player, 2> players_;
     int roi_sz_ = 15;
     const Calibration& calib_;
+    double rect_min_area_;
+    double circle_min_area_;
 };
 
 #endif // TEAM_HPP
