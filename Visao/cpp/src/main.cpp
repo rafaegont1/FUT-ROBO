@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
             team_green.find_poses(video);
 
             key = video.show();
+            // std::cout << "loop" << std::endl; // rascunho
         } while (key != 27);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

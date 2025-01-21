@@ -1,15 +1,15 @@
 import cv2 as cv
 import numpy as np
 from src.util import file_read, file_write
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 FILE_NAME = 'calibration.npy'
 uv_points: List[List[int]] = []  # Vetor de Pontos na Imagem (lista de coordenadas [u, v])
 
 
 def calibrate(
-    xy_points: List[Tuple[float, float]], 
-    frame: np.ndarray, 
+    xy_points: List[Tuple[float, float]],
+    frame: np.ndarray,
     waitKey_delay: int
 ) -> np.ndarray:
     """
@@ -18,10 +18,14 @@ def calibrate(
     @param xy_points: Lista de coordenadas (x, y) no mundo real (em milímetros).
     @param frame: Imagem com o frame melhorado, para exibição durante a calibração.
     @param waitKey_delay: Tempo de espera entre quadros (em milissegundos) para interação do usuário.
-    
+
     @return: Constantes de calibração (cte), uma matriz numpy com os coeficientes de calibração.
     """
     global uv_points
+
+    # Verificar se o frame é válido
+    if frame is None or frame.size == 0:
+        raise ValueError("Frame inválido ou vazio.")
 
     # Tenta ler os pontos UV de um arquivo de calibração
     uv_points = file_read(FILE_NAME)
@@ -31,16 +35,21 @@ def calibrate(
         window_name = "Clique no ponto desejado para calibração"
         cv.namedWindow(window_name)
 
-        # Coleta pontos UV clicando na imagem até que tenhamos o número de pontos necessário
-        while len(uv_points) < len(xy_points):
-            cv.imshow(window_name, frame)
-            cv.setMouseCallback(window_name, calibrate_click_event, param=frame)
-            cv.waitKey(waitKey_delay)
-
-        cv.destroyWindow(window_name)
+        try:
+            # Coleta pontos UV clicando na imagem até que tenhamos o número de pontos necessário
+            while len(uv_points) < len(xy_points):
+                cv.imshow(window_name, frame)
+                cv.setMouseCallback(window_name, calibrate_click_event, param=frame)
+                if cv.waitKey(waitKey_delay) & 0xFF == 27:  # Pressione ESC para sair
+                    break
+        finally:
+            cv.destroyWindow(window_name)
 
         # Salva os pontos UV coletados para calibração futura
-        file_write(FILE_NAME, uv_points)
+        if len(uv_points) == len(xy_points):
+            file_write(FILE_NAME, uv_points)
+        else:
+            raise RuntimeError("Calibração interrompida antes de coletar todos os pontos.")
 
     # Calcula a constante de calibração
     cte = coef_calc(uv_points, xy_points)

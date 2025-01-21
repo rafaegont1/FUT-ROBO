@@ -50,6 +50,19 @@ int Video::show()
     return cv::waitKey(win_delay_);
 }
 
+void Video::draw_text(const cv::String& text, const cv::Point& org, const cv::Scalar& color)
+{
+    cv::putText(frame.raw, text, org, cv::FONT_HERSHEY_PLAIN, 1.5, color, 2);
+}
+
+void Video::draw_circle(const cv::Point& center, const cv::String& text)
+{
+    // const cv::String text = std::to_string(xy.x) + ',' + std::to_string(xy.y);
+
+    cv::circle(frame.raw, center, 3, cv::Scalar(0, 0, 255), 2);
+    cv::putText(frame.raw, text, center, cv::FONT_HERSHEY_PLAIN, 0.8, cv::Scalar(0, 0, 0));
+}
+
 std::string Video::win_name() const
 {
     return win_name_;

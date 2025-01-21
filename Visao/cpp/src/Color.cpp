@@ -2,7 +2,17 @@
 
 #include <optional>
 
+Color::Color()
+{
+    file_open();
+}
+
 Color::Color(const std::string& name) : name_{name}
+{
+    file_open();
+}
+
+void Color::file_open()
 {
     cv::FileStorage fs(name_ + ".yaml", cv::FileStorage::READ);
 
@@ -26,15 +36,18 @@ void Color::select(Video& video, const std::string& config_file)
 
     std::optional<cv::Point> click_point = std::nullopt;
 
+    cv::setMouseCallback(video.win_name(), click_event, &click_point);
     do {
         video.update();
-        const std::string win_text = "Selecione a cor " + name_;
-        cv::putText(video.frame.raw, win_text, cv::Point(0, video.frame.raw.rows - 10), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(80, 80, 80), 2);
-        cv::imshow(video.win_name(), video.frame.raw);
-        cv::setMouseCallback(video.win_name(), click_event, &click_point);
-        int key = cv::waitKey(video.win_delay());
+        // const std::string win_text = "Selecione a cor " + name_;
+        // cv::putText(video.frame.raw, win_text, cv::Point(0, video.frame.raw.rows - 10), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(80, 80, 80), 2);
+        video.draw_text("Selecione a cor " + name_);
+        int key = video.show();
+        // cv::imshow(video.win_name(), video.frame.raw);
+        // int key = cv::waitKey(video.win_delay());
         if (key == 27) break;
     } while (!click_point.has_value());
+    cv::setMouseCallback(video.win_name(), nullptr);
 
     cv::Vec3b click_hsv = video.frame.hsv.at<cv::Vec3b>(click_point->y, click_point->x);
     // std::cout << "Click Point: (" << click_point->x << ", " << click_point->y << ")" // rascunho
@@ -121,8 +134,9 @@ const std::vector<cv::Point> Color::find_centroids(const cv::Mat& frame_hsv, dou
     return centroids;
 }
 
-void Color::click_event(int event, int x, int y, int flags, void* userdata) {
-    (void)flags; // prevent unused parameter warning
+void Color::click_event(int event, int x, int y, int flags, void* userdata)
+{
+    (void)flags; // Prevent unused parameter warning
 
     if (event == cv::EVENT_LBUTTONDOWN) {
         auto clicked_point = static_cast<std::optional<cv::Point>*>(userdata);
@@ -133,6 +147,11 @@ void Color::click_event(int event, int x, int y, int flags, void* userdata) {
 const std::string& Color::name()
 {
     return name_;
+}
+
+void Color::name(const std::string& new_value)
+{
+    name_ = new_value;
 }
 
 bool Color::file_lodead()

@@ -16,6 +16,12 @@ public:
 
     void update();
     int show();
+    void draw_text(
+        const cv::String& text,
+        const cv::Point& org = cv::Point(0, 20),
+        const cv::Scalar& color = cv::Scalar(80, 80, 80)
+    );
+    void draw_circle(const cv::Point& center, const cv::String& text);
 
     std::string win_name() const;
     int win_delay() const;

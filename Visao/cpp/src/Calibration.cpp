@@ -13,34 +13,41 @@ const std::array<std::array<int, 2>, 5> Calibration::XY_POINTS = {{
 cv::Mat Calibration::coef_calc(const std::vector<std::vector<int>>& uv_points)
 {
     int n = uv_points.size();
+    
+    // Montando a matriz A
     cv::Mat A(n, 5, CV_64F);
-    cv::Mat Bx(n, 1, CV_64F), By(n, 1, CV_64F);
-
     for (int i = 0; i < n; ++i) {
+        double u = uv_points[i][0];
+        double v = uv_points[i][1];
         A.at<double>(i, 0) = 1.0;
-        A.at<double>(i, 1) = uv_points[i][0];
-        A.at<double>(i, 2) = uv_points[i][0] * uv_points[i][0];
-        A.at<double>(i, 3) = uv_points[i][1];
-        A.at<double>(i, 4) = uv_points[i][1] * uv_points[i][1];
+        A.at<double>(i, 1) = u;
+        A.at<double>(i, 2) = v;
+        A.at<double>(i, 3) = u * u;
+        A.at<double>(i, 4) = v * v;
+    }
 
-        Bx.at<double>(i, 0) = std::get<0>(XY_POINTS[i]);
-        By.at<double>(i, 0) = std::get<1>(XY_POINTS[i]);
+    // Montando as matrizes B para os eixos X e Y
+    cv::Mat Bx(n, 1, CV_64F);
+    cv::Mat By(n, 1, CV_64F);
+    for (int i = 0; i < n; ++i) {
+        Bx.at<double>(i, 0) = XY_POINTS[i][0];
+        By.at<double>(i, 0) = XY_POINTS[i][1];
     }
 
     // Calculando a pseudo-inversa de A
-    cv::Mat A_inv = A.t() * A;
-    cv::Mat A_inv_ = A_inv.inv(cv::DECOMP_SVD);  // Inversa usando SVD
+    cv::Mat A_inv;
+    invert(A.t() * A, A_inv, cv::DECOMP_SVD);
+    A_inv = A_inv * A.t();
 
     // Calculando os coeficientes alpha e beta
-    cv::Mat alpha = A_inv_ * A.t() * Bx;
-    cv::Mat beta = A_inv_ * A.t() * By;
+    cv::Mat alpha = A_inv * Bx;
+    cv::Mat beta = A_inv * By;
 
-    // Retorna os coeficientes de calibração
-    cv::Mat result(2, 1, CV_64F);
-    result.at<double>(0, 0) = alpha.at<double>(0, 0);
-    result.at<double>(1, 0) = beta.at<double>(0, 0);
-    
-    return result;
+    // Concatenando os coeficientes alpha e beta em uma matriz de saída
+    cv::Mat coefficients;
+    vconcat(alpha.t(), beta.t(), coefficients); // Concatenar como linhas
+
+    return coefficients;
 }
 
 // Função de callback para o evento de clique
@@ -86,13 +93,20 @@ void Calibration::calibrate(Video& video)
 
     std::vector<std::vector<int>> uv_points;
 
+    // Sets mouse callback function
+    cv::setMouseCallback(video.win_name(), calibrate_click_event, &uv_points);
+
     // Coleta pontos UV clicando na imagem até que tenhamos o número de pontos necessário
     while (uv_points.size() < XY_POINTS.size()) {
         video.update();
-        cv::imshow(video.win_name(), video.frame.raw);
-        cv::setMouseCallback(video.win_name(), calibrate_click_event, &uv_points);
-        cv::waitKey(video.win_delay());
+        video.draw_text("Select the " + std::to_string(uv_points.size() + 1) + " point");
+        video.show();
+        // cv::imshow(video.win_name(), video.frame.raw);
+        // cv::waitKey(video.win_delay());
     }
+
+    // Unsets mouse callback function
+    cv::setMouseCallback(video.win_name(), nullptr);
 
     // Calcula a constante de calibração
     cte_ = coef_calc(uv_points);
@@ -104,23 +118,34 @@ void Calibration::calibrate(Video& video)
 
 cv::Point Calibration::uv_to_xy(const cv::Point& uv) const
 {
-    // Confirma que cte_ é uma matriz 2x1
-    if (cte_.rows != 2 || cte_.cols != 1) {
-        throw std::runtime_error("cte_ deve ser uma matriz 2x1.");
-    }
+// std::vector<int> uv_to_xy(const std::vector<int>& uv, const cv::Mat& cte) {
+    /**
+     * Transforma coordenadas UV em coordenadas XY no espaço físico, utilizando as constantes de calibração.
+     *
+     * @param uv: Coordenadas UV em pixels (u, v) a serem convertidas.
+     * @param cte: Constantes de calibração calculadas para a transformação.
+     *
+     * @return: Coordenadas XY correspondentes aos pontos UV em unidades físicas (como milímetros).
+     */
 
-    // Monta o vetor de entrada com o ponto UV
-    cv::Mat imag(2, 1, CV_64F);
-    imag.at<double>(0, 0) = static_cast<double>(uv.x);
-    imag.at<double>(1, 0) = static_cast<double>(uv.y);
+    // Formata os coeficientes de calibração
+    cv::Mat coefs = cte_.rowRange(0, 2);
 
-    // Aplica a transformação de calibração (2x1 * 2x1)
-    cv::Mat out = cte_.mul(imag);
+    // Monta o vetor de entrada com o ponto UV e seus quadrados
+    cv::Mat imag = (cv::Mat_<double>(1, 5) << 1.0, uv.x, uv.y, std::pow(uv.x, 2), std::pow(uv.y, 2));
+
+    // Aplica a transformação de calibração
+    cv::Mat out = coefs * imag.t();
 
     // Retorna as coordenadas XY arredondadas e como inteiros
+    // std::vector<int> xy = {static_cast<int>(std::round(out.at<double>(0, 0))),
+    //                        static_cast<int>(std::round(out.at<double>(1, 0)))};
     cv::Point xy;
     xy.x = static_cast<int>(std::round(out.at<double>(0, 0)));
     xy.y = static_cast<int>(std::round(out.at<double>(1, 0)));
+
+    std::cout << "(u, v): " << uv.x << '\t' << uv.y << '\n'  // rascunho
+              << "(x, y): " << xy.x << '\t' << xy.y << '\n'; // rascunho
 
     return xy;
 }
