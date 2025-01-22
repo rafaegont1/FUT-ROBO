@@ -1,4 +1,4 @@
-#include "Publisher.hpp"
+#include "futbot/Publisher.hpp"
 
 Publisher::Publisher(const std::string& client_id, const std::string& server_addr, int qos)
 : client_{server_addr, client_id}, qos_{qos}
@@ -45,8 +45,8 @@ void Publisher::Callback::connection_lost(const std::string& cause)
     std::cout << "Connection lost: " << cause << std::endl;
 }
 
-void Publisher::Callback::delivery_complete(mqtt::delivery_token_ptr token)
-{
-    (void)token; // Prevent unused variable warning
-    std::cout << "Message delivered" << std::endl;
-}
+// void Publisher::Callback::delivery_complete(mqtt::delivery_token_ptr token)
+// {
+//     (void)token; // Prevent unused variable warning
+//     std::cout << "Message delivered" << std::endl;
+// }

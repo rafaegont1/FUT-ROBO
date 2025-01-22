@@ -1,7 +1,7 @@
 #ifndef VIDEO_HPP
 #define VIDEO_HPP
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/highgui.hpp>
 #include <string>
 
 class Video {

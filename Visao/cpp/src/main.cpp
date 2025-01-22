@@ -1,11 +1,12 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
-#include "Video.hpp"
-#include "Calibration.hpp"
-#include "Color.hpp"
-#include "Team.hpp"
-#include "Publisher.hpp"
+#include "futbot/Video.hpp"
+#include "futbot/Calibration.hpp"
+#include "futbot/Color.hpp"
+#include "futbot/Team.hpp"
+#include "futbot/Publisher.hpp"
+#include "futbot/Ball.hpp"
 
 static const std::string config_file = "../config.yaml";
 constexpr double RAD2DEG = 180 / M_PI;
@@ -33,18 +34,22 @@ int main(int argc, char* argv[])
     Color blue("azul");
     Color pink("rosa");
     Color yellow("amarelo");
+    Color orange("laranja");
 
     if (!green.file_lodead()) green.select(video, config_file);
     if (!blue.file_lodead()) blue.select(video, config_file);
     if (!pink.file_lodead()) pink.select(video, config_file);
     if (!yellow.file_lodead()) yellow.select(video, config_file);
+    if (!orange.file_lodead()) orange.select(video, config_file);
 
     Team team_green(green, pink, yellow, calib, Team::MatchSide::HOME);
     Team team_blue(blue, pink, yellow, calib, Team::MatchSide::AWAY);
+    Ball ball(orange, calib);
 
     try {
         int key;
         const std::array<Team::Player, 2>& green_players = team_green.players();
+        const std::array<Team::Player, 2>& blue_players = team_blue.players();
         std::string msg;
 
         do {
@@ -52,7 +57,19 @@ int main(int argc, char* argv[])
 
             team_green.find_poses(video);
             msg = player_coord_to_string(green_players[0]);
-            pub.publish(msg, "test/topic");
+            pub.publish(msg, "HOME-VR");
+            msg = player_coord_to_string(green_players[1]);
+            pub.publish(msg, "HOME-VA");
+
+            team_blue.find_poses(video);
+            msg = player_coord_to_string(blue_players[0]);
+            pub.publish(msg, "AWAY-AR");
+            msg = player_coord_to_string(blue_players[1]);
+            pub.publish(msg, "AWAY-AA");
+
+            ball.find_pose(video);
+            msg = ball.centroid_msg();
+            pub.publish(msg, "BALL");
 
             key = video.show();
         } while (key != 27);

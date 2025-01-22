@@ -1,10 +1,9 @@
 #ifndef TEAM_HPP
 #define TEAM_HPP
 
-#include <array>
-#include "Color.hpp"
-#include "Calibration.hpp"
-#include "Publisher.hpp"
+#include "futbot/Color.hpp"
+#include "futbot/Calibration.hpp"
+#include "futbot/Publisher.hpp"
 
 class Team {
 public:

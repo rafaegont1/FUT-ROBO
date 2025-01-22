@@ -1,9 +1,9 @@
 #ifndef CALIBRATION_HPP
 #define CALIBRATION_HPP
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include <vector>
-#include "Video.hpp"
+#include "futbot/Video.hpp"
 
 class Calibration {
 public:
@@ -11,7 +11,7 @@ public:
     cv::Point uv_to_xy(const cv::Point& uv) const;
 
 private:
-    static void calibrate_click_event(int event, int x, int y, int, void* param);
+    static void click_event(int event, int x, int y, int, void* param);
     cv::Mat coef_calc(const std::vector<std::vector<int>>& uv_points);
     bool file_read();
     void file_write();

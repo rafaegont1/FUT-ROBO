@@ -4,7 +4,8 @@ color:
     hue_tol: 5
     sat_tol: 75
     rect_min_area: 200.0
-    circle_min_area: 5.0
+    circle_min_area: 2.0
+    ball_min_area: 15.0
 
 camera:
     width: 800

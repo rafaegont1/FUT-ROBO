@@ -1,9 +1,9 @@
 #ifndef COLOR_HPP
 #define COLOR_HPP
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include <vector>
-#include "Video.hpp"
+#include "futbot/Video.hpp"
 
 class Color {
 public:

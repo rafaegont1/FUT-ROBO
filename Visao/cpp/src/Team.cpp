@@ -1,6 +1,5 @@
-#include "Team.hpp"
+#include "futbot/Team.hpp"
 
-#include <opencv2/highgui.hpp>
 #include <cmath>
 
 Team::Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib, Team::MatchSide match_side)

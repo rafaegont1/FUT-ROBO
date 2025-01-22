@@ -1,7 +1,9 @@
-#include "Video.hpp"
+#include "futbot/Video.hpp"
+
 #include <cstdio>
 #include <iostream>
 #include <stdexcept>
+#include <opencv2/imgproc.hpp>
 
 Video::Video(const std::string& config_file)
 {

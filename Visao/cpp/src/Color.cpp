@@ -1,10 +1,10 @@
-#include "Color.hpp"
+#include "futbot/Color.hpp"
 
+#include <opencv2/imgproc.hpp>
 #include <optional>
 
 Color::Color()
 {
-    file_open();
 }
 
 Color::Color(const std::string& name) : name_{name}
@@ -26,7 +26,7 @@ void Color::file_open()
 
 void Color::select(Video& video, const std::string& config_file)
 {
-    std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
+    // std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
     cv::FileStorage fs;
 
     fs.open(config_file, cv::FileStorage::READ);
@@ -45,7 +45,7 @@ void Color::select(Video& video, const std::string& config_file)
         int key = video.show();
         // cv::imshow(video.win_name(), video.frame.raw);
         // int key = cv::waitKey(video.win_delay());
-        if (key == 27) break;
+        if (key == 27) exit(EXIT_SUCCESS);
     } while (!click_point.has_value());
     cv::setMouseCallback(video.win_name(), nullptr);
 
@@ -60,7 +60,7 @@ void Color::select(Video& video, const std::string& config_file)
         std::clamp(static_cast<int>(click_hsv[1]) - sat_tol, 0, 255),
         20
     );
-    std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
+    // std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
     // std::cout << "lowerb: (" << static_cast<int>(lowerb[0]) << ", " // rascunho
     //                          << static_cast<int>(lowerb[1]) << ", " // rascunho
     //                          << static_cast<int>(lowerb[2]) << ")" // rascunho
@@ -111,8 +111,8 @@ const std::vector<cv::Point> Color::find_centroids(const cv::Mat& frame_hsv, dou
         // std::cout << "AREA: " << area << std::endl; // rascunho
 
         if (area >= min_area) {
-            std::cout << "color: " << name_ << '\n' // rascunho
-                      << "area > min_area: " << area << std::endl; // rascunho
+            // std::cout << "color: " << name_ << '\n' // rascunho
+            //           << "area > min_area: " << area << std::endl; // rascunho
             // std::cout << "area >= min_area\n";
             cv::Moments M = cv::moments(contour);
 

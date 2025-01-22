@@ -1,6 +1,4 @@
-#include "Calibration.hpp"
-
-#include <array>
+#include "futbot/Calibration.hpp"
 
 const std::array<std::array<int, 2>, 5> Calibration::XY_POINTS = {{
     {0, 0}, 
@@ -51,11 +49,11 @@ cv::Mat Calibration::coef_calc(const std::vector<std::vector<int>>& uv_points)
 }
 
 // Função de callback para o evento de clique
-void Calibration::calibrate_click_event(int event, int x, int y, int, void* param)
+void Calibration::click_event(int event, int x, int y, int, void* param)
 {
     if (event == cv::EVENT_LBUTTONDOWN) {
         auto uv_points = static_cast<std::vector<std::vector<int>>*>(param);
-        std::cout << "Ponto selecionado: " << x << ", " << y << std::endl;
+        // std::cout << "Ponto selecionado: " << x << ", " << y << std::endl;
         uv_points->push_back({x, y});
     }
 }
@@ -94,13 +92,14 @@ void Calibration::calibrate(Video& video)
     std::vector<std::vector<int>> uv_points;
 
     // Sets mouse callback function
-    cv::setMouseCallback(video.win_name(), calibrate_click_event, &uv_points);
+    cv::setMouseCallback(video.win_name(), click_event, &uv_points);
 
     // Coleta pontos UV clicando na imagem até que tenhamos o número de pontos necessário
     while (uv_points.size() < XY_POINTS.size()) {
         video.update();
         video.draw_text("Select the " + std::to_string(uv_points.size() + 1) + " point");
-        video.show();
+        int key = video.show();
+        if (key == 27) exit(EXIT_SUCCESS);
         // cv::imshow(video.win_name(), video.frame.raw);
         // cv::waitKey(video.win_delay());
     }
@@ -110,8 +109,8 @@ void Calibration::calibrate(Video& video)
 
     // Calcula a constante de calibração
     cte_ = coef_calc(uv_points);
-    std::cout << "Calibração concluída!" << std::endl;
-    std::cout << "cte = " << cte_ << std::endl;  // Rascunho de saída para visualização
+    // std::cout << "Calibração concluída!" << std::endl;
+    // std::cout << "cte = " << cte_ << std::endl;  // Rascunho de saída para visualização
 
     file_write();
 }
@@ -144,8 +143,8 @@ cv::Point Calibration::uv_to_xy(const cv::Point& uv) const
     xy.x = static_cast<int>(std::round(out.at<double>(0, 0)));
     xy.y = static_cast<int>(std::round(out.at<double>(1, 0)));
 
-    std::cout << "(u, v): " << uv.x << '\t' << uv.y << '\n'  // rascunho
-              << "(x, y): " << xy.x << '\t' << xy.y << '\n'; // rascunho
+    // std::cout << "(u, v): " << uv.x << '\t' << uv.y << '\n'  // rascunho
+    //           << "(x, y): " << xy.x << '\t' << xy.y << '\n'; // rascunho
 
     return xy;
 }

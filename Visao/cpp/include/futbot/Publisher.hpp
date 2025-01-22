@@ -1,7 +1,7 @@
 #ifndef PUBLISHER_HPP
 #define PUBLISHER_HPP
 
-#include "mqtt/async_client.h"
+#include <mqtt/async_client.h>
 
 class Publisher {
 public:
@@ -21,7 +21,7 @@ private:
     class Callback : public virtual mqtt::callback {
     public:
         void connection_lost(const std::string& cause) override;
-        void delivery_complete(mqtt::delivery_token_ptr token) override;
+        // void delivery_complete(mqtt::delivery_token_ptr token) override;
     };
 
     mqtt::async_client client_;
