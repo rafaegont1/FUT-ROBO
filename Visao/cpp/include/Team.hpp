@@ -4,9 +4,15 @@
 #include <array>
 #include "Color.hpp"
 #include "Calibration.hpp"
+#include "Publisher.hpp"
 
 class Team {
 public:
+    enum class MatchSide {
+        HOME,
+        AWAY,
+    };
+
     struct Player {
         cv::Point centroid_circle_image;
         cv::Point centroid_circle_world;
@@ -17,9 +23,11 @@ public:
         Color color;
     };
 
-    Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib);
+    Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib, Team::MatchSide match_side);
     void find_poses(Video& video);
-    const std::array<Team::Player, 2>& players();
+    void publish_poses(Publisher& pub);
+    std::string home_or_away() const;
+    const std::array<Team::Player, 2>& players() const;
 
 private:
     struct ROI {
@@ -28,10 +36,10 @@ private:
     };
 
     void file_read(const std::string& config_file = "../config.yaml");
-    inline Team::ROI get_roi(const cv::Point& center, const Video& video);
-    // inline void find_player(Team::Player& player, cv::Point& centroid, Video& video);
-    inline double get_theta(const cv::Point& rect_point, const cv::Point& circle_point);
-    inline bool all_players_found();
+    Team::ROI get_roi(const cv::Point& center, const Video& video);
+    // void find_player(Team::Player& player, cv::Point& centroid, Video& video);
+    double get_theta(const cv::Point& rect_point, const cv::Point& circle_point);
+    bool all_players_found();
 
     std::string name_;
     Color team_color;
@@ -40,6 +48,7 @@ private:
     const Calibration& calib_;
     double rect_min_area_;
     double circle_min_area_;
+    Team::MatchSide match_side_;
 };
 
 #endif // TEAM_HPP

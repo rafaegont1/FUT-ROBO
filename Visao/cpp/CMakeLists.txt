@@ -15,8 +15,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Find the OpenCV package
+# Find required packages
 find_package(OpenCV REQUIRED)
+find_package(PahoMqttCpp REQUIRED)
 
 # Define source files using globbing (this will match all .cpp files in the src directory)
 file(GLOB SOURCES "src/*.cpp")
@@ -31,4 +32,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+target_link_libraries(${PROJECT_NAME}
+    ${OpenCV_LIBS}
+    PahoMqttCpp::paho-mqttpp3
+)
