@@ -3,13 +3,15 @@
 
 #include "futbot/Color.hpp"
 #include "futbot/Calibration.hpp"
+#include "futbot/Publisher.hpp"
 
 class Ball {
 public:
     Ball(const Color& color, const Calibration& calib);
     const cv::Point& find_pose(Video& video);
+    void publish_pose(Publisher& publisher);
     const cv::Point& centroid_world() const;
-    std::string centroid_msg() const;
+    // std::string centroid_msg() const;
 
 private:
     void file_read(const std::string& config_file = "../config.yaml");

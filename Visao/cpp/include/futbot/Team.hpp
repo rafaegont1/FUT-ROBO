@@ -13,6 +13,7 @@ public:
     };
 
     struct Player {
+        std::string name;
         cv::Point centroid_circle_image;
         cv::Point centroid_circle_world;
         cv::Point centroid_rect_image;
@@ -22,11 +23,12 @@ public:
         Color color;
     };
 
-    Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib, Team::MatchSide match_side);
+    Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib);
     void find_poses(Video& video);
-    void publish_poses(Publisher& pub);
-    std::string home_or_away() const;
+    void publish_poses(Publisher& pub, Team::MatchSide match_side);
+    inline std::string home_or_away(Team::MatchSide match_side) const;
     const std::array<Team::Player, 2>& players() const;
+    void invert_theta_angles();
 
 private:
     struct ROI {
@@ -47,7 +49,7 @@ private:
     const Calibration& calib_;
     double rect_min_area_;
     double circle_min_area_;
-    Team::MatchSide match_side_;
+    // Team::MatchSide match_side_;
 };
 
 #endif // TEAM_HPP

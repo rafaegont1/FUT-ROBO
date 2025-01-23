@@ -1,6 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
+#include <chrono> // rascunho
 #include "futbot/Video.hpp"
 #include "futbot/Calibration.hpp"
 #include "futbot/Color.hpp"
@@ -18,14 +19,15 @@ inline std::string player_coord_to_string(const Team::Player& p)
            std::to_string(static_cast<int>(p.theta*RAD2DEG)) + ',';
 }
 
-int main(int argc, char* argv[])
+// int main(int argc, char* argv[])
+int main()
 {
-    if (argc < 2) {
-        std::cerr << "usage: " << argv[0] << " <config.yaml file>" << std::endl;
-    }
+    // if (argc < 2) {
+    //     std::cerr << "usage: " << argv[0] << " <config.yaml file>" << std::endl;
+    // }
 
     Video video(config_file);
-    Publisher pub("MANAGER", "tcp://localhost:1883");
+    Publisher publisher("MANAGER", "tcp://localhost:1883");
 
     Calibration calib;
     calib.calibrate(video);
@@ -42,36 +44,36 @@ int main(int argc, char* argv[])
     if (!yellow.file_lodead()) yellow.select(video, config_file);
     if (!orange.file_lodead()) orange.select(video, config_file);
 
-    Team team_green(green, pink, yellow, calib, Team::MatchSide::HOME);
-    Team team_blue(blue, pink, yellow, calib, Team::MatchSide::AWAY);
+    Team team_green(green, pink, yellow, calib);
+    Team team_blue(blue, pink, yellow, calib);
     Ball ball(orange, calib);
 
     try {
         int key;
-        const std::array<Team::Player, 2>& green_players = team_green.players();
-        const std::array<Team::Player, 2>& blue_players = team_blue.players();
-        std::string msg;
 
         do {
+            auto start_time = std::chrono::high_resolution_clock::now(); // rascunho
             video.update();
 
             team_green.find_poses(video);
-            msg = player_coord_to_string(green_players[0]);
-            pub.publish(msg, "HOME-VR");
-            msg = player_coord_to_string(green_players[1]);
-            pub.publish(msg, "HOME-VA");
-
             team_blue.find_poses(video);
-            msg = player_coord_to_string(blue_players[0]);
-            pub.publish(msg, "AWAY-AR");
-            msg = player_coord_to_string(blue_players[1]);
-            pub.publish(msg, "AWAY-AA");
-
             ball.find_pose(video);
-            msg = ball.centroid_msg();
-            pub.publish(msg, "BALL");
+
+            team_green.publish_poses(publisher, Team::MatchSide::HOME);
+            team_blue.publish_poses(publisher, Team::MatchSide::HOME);
+
+            team_green.invert_theta_angles();
+            team_blue.invert_theta_angles();
+
+            team_green.publish_poses(publisher, Team::MatchSide::AWAY);
+            team_blue.publish_poses(publisher, Team::MatchSide::AWAY);
+
+            ball.publish_pose(publisher);
 
             key = video.show();
+            auto end_time = std::chrono::high_resolution_clock::now(); // rascunho
+            std::chrono::duration<double, std::milli> time = end_time - start_time; // rascunho
+            std::cout << "Took " << time.count() << " ms to run.\n"; // rascunho
         } while (key != 27);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

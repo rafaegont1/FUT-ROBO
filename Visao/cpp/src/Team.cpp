@@ -2,9 +2,10 @@
 
 #include <cmath>
 
-Team::Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib, Team::MatchSide match_side)
-: team_color{team_color}, calib_{calib}, match_side_{match_side}
+Team::Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib)
+: team_color{team_color}, calib_{calib}
 {
+    players_[0].name = "";
     players_[0].color = pink;
     players_[1].color = yellow;
     file_read();
@@ -62,6 +63,11 @@ void Team::find_poses(Video& video)
             // std::cout << "theta: " << p.theta << " rad\n" // rascunho
             //           << "theta: " << p.theta*180/M_PI << " °\n"; // rascunho
 
+        const std::string pub_topic = team_color.name() + '|' + p.color.name() + '=' +
+            std::to_string(p.centroid_rect_world.x) + ',' +
+            std::to_string(p.centroid_rect_world.y) + ',' +
+            std::to_string(p.theta*180/M_PI) + ',';
+
             video.draw_circle(
                 p.centroid_rect_image,
                 team_color.name() + '|' + p.color.name() + '=' + std::to_string(p.centroid_rect_world.x) + ',' + std::to_string(p.centroid_rect_world.y) + ',' + std::to_string(p.theta*180/M_PI)
@@ -72,18 +78,32 @@ void Team::find_poses(Video& video)
     }
 }
 
-void Team::publish_poses(Publisher& pub)
+void Team::publish_poses(Publisher& pub, Team::MatchSide match_side)
 {
-    auto msg_to_publish = [](const Team::Player& p) -> std::string {
-        constexpr double RAD2DEG = 180 / M_PI;
+    constexpr double RAD2DEG = 180 / M_PI;
 
-        return std::to_string(p.centroid_rect_world.x) + ',' +
-               std::to_string(p.centroid_rect_world.y) + ',' +
-               std::to_string(static_cast<int>(p.theta * RAD2DEG)) + ',';
-    };
+    // auto pub_topic = [this](const Team::Player& p, Team::MatchSide match_side) -> std::string {
+    //     const std::string home_or_away =
+    //         match_side == MatchSide::HOME ? "HOME" :
+    //         match_side == MatchSide::AWAY ? "AWAY" :
+    //         "UNKNOWN";
+    //     const char team_char = std::toupper(this->team_color.name()[0]);
+    //     const char player_char = std::toupper(p.color.name()[0]);
+
+    //     return home_or_away + '-' + team_char + player_char;
+    // };
 
     for (const auto& p : players_) {
-        pub.publish(msg_to_publish(p), home_or_away());
+        const std::string pub_msg =
+            std::to_string(p.centroid_rect_world.x) + ',' +
+            std::to_string(p.centroid_rect_world.y) + ',' +
+            std::to_string(static_cast<int>(p.theta * RAD2DEG)) + ',';
+        const std::string pub_topic = home_or_away(match_side) + '-' +
+            static_cast<char>(std::toupper(this->team_color.name()[0])) +
+            static_cast<char>(std::toupper(p.color.name()[0]));
+
+        // std::cout << "Publishing in topic " << pub_topic << std::endl; // rascunho
+        pub.publish(pub_msg, pub_topic);
     }
 }
 
@@ -92,10 +112,10 @@ const std::array<Team::Player, 2>& Team::players() const
     return players_;
 }
 
-std::string Team::home_or_away() const
+inline std::string Team::home_or_away(Team::MatchSide match_side) const
 {
-    return match_side_ == MatchSide::HOME ? "HOME" :
-           match_side_ == MatchSide::AWAY ? "AWAY" :
+    return match_side == MatchSide::HOME ? "HOME" :
+           match_side == MatchSide::AWAY ? "AWAY" :
            "UNKNOWN";
 }
 
@@ -135,4 +155,17 @@ bool Team::all_players_found()
     }
 
     return true;
+}
+
+void Team::invert_theta_angles()
+{
+    for (auto& p : players_) {
+        if (p.theta > 0) {
+            p.theta -= 180.0;
+        }
+        // NOTE: aqui é `if theta<=0` ou `else`?
+        if (p.theta <= 0) {
+            p.theta += 180.0;
+        }
+    }
 }

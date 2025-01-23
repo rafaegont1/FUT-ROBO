@@ -16,14 +16,24 @@ const cv::Point& Ball::find_pose(Video& video)
     } else {
         centroid_image_ = centroids[0];
         centroid_world_ = calib_.uv_to_xy(centroids[0]);
-        video.draw_circle(
-            centroid_image_,
-            "BALL: " + std::to_string(centroid_world_.x) + ',' + std::to_string(centroid_world_.y)
-        );
+        const std::string circle_text = "BALL: " +
+            std::to_string(centroid_world_.x) + ',' +
+            std::to_string(centroid_world_.y) + ',';
+        video.draw_circle(centroid_image_, circle_text);
         found_ = true;
     }
 
     return centroid_world_;
+}
+
+void Ball::publish_pose(Publisher& publisher)
+{
+    const std::string pub_msg =
+        std::to_string(centroid_world_.x) + ',' +
+        std::to_string(centroid_world_.y) + ',';
+    const std::string pub_topic = "BALL";
+
+    publisher.publish(pub_msg, pub_topic);
 }
 
 const cv::Point& Ball::centroid_world() const
@@ -44,8 +54,8 @@ void Ball::file_read(const std::string& config_file)
     fs.release();
 }
 
-std::string Ball::centroid_msg() const
-{
-    return std::to_string(centroid_world_.x) + ',' +
-           std::to_string(centroid_world_.x) + ',';
-}
+// std::string Ball::centroid_msg() const
+// {
+//     return std::to_string(centroid_world_.x) + ',' +
+//            std::to_string(centroid_world_.x) + ',';
+// }

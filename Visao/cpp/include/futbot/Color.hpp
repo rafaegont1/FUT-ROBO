@@ -12,7 +12,7 @@ public:
 
     void select(Video& video, const std::string& config_file);
     const std::vector<cv::Point> find_centroids(const cv::Mat& frame_hsv, double min_area = 100.0, std::size_t size = 1);
-    const std::string& name();
+    const std::string& name() const;
     void name(const std::string& new_value);
     bool file_lodead();
 

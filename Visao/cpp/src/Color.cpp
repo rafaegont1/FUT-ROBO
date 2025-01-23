@@ -146,7 +146,7 @@ void Color::click_event(int event, int x, int y, int flags, void* userdata)
     }
 }
 
-const std::string& Color::name()
+const std::string& Color::name() const
 {
     return name_;
 }
