@@ -52,7 +52,7 @@ int main()
         int key;
 
         do {
-            auto start_time = std::chrono::high_resolution_clock::now(); // rascunho
+            // auto start_time = std::chrono::high_resolution_clock::now(); // rascunho
             video.update();
 
             team_green.find_poses(video);
@@ -71,9 +71,9 @@ int main()
             ball.publish_pose(publisher);
 
             key = video.show();
-            auto end_time = std::chrono::high_resolution_clock::now(); // rascunho
-            std::chrono::duration<double, std::milli> time = end_time - start_time; // rascunho
-            std::cout << "Took " << time.count() << " ms to run.\n"; // rascunho
+            // auto end_time = std::chrono::high_resolution_clock::now(); // rascunho
+            // std::chrono::duration<double, std::milli> time = end_time - start_time; // rascunho
+            // std::cout << "Took " << time.count() << " ms to run.\n"; // rascunho
         } while (key != 27);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

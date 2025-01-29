@@ -6,12 +6,14 @@ color:
     rect_min_area: 200.0
     circle_min_area: 10.0
     ball_min_area: 15.0
+    roi_size: 50.0
 
 camera:
-    width: 800
-    height: 600
+    id: 0
+    width: 1280
+    height: 720
     fps: 30
 
 window:
     name: window
-    delay: 40
+    delay: 10

@@ -45,7 +45,7 @@ private:
     std::string name_;
     Color team_color;
     std::array<Player, 2> players_;
-    int roi_sz_ = 15;
+    int roi_sz_;
     const Calibration& calib_;
     double rect_min_area_;
     double circle_min_area_;

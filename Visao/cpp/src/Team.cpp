@@ -21,6 +21,7 @@ void Team::file_read(const std::string& config_file)
 
     fs["color"]["rect_min_area"] >> rect_min_area_;
     fs["color"]["circle_min_area"] >> circle_min_area_;
+    fs["color"]["roi_size"] >> roi_sz_;
 
     fs.release();
 }

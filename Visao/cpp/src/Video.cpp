@@ -13,8 +13,8 @@ Video::Video(const std::string& config_file)
         throw std::runtime_error("Couldn't open file " + config_file);
     }
 
-    cap_.open("../../testes/new/output.avi"); // rascunho
-    // cap_.open((int)fs["camera"]["id"]);
+    // cap_.open("../../testes/new/output.avi"); // rascunho
+    cap_.open((int)fs["camera"]["id"]);
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, (double)fs["camera"]["width"]);
     cap_.set(cv::CAP_PROP_FRAME_HEIGHT, (double)fs["camera"]["height"]);
     cap_.set(cv::CAP_PROP_FPS, (double)fs["camera"]["fps"]);
