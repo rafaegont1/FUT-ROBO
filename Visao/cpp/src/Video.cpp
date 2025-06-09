@@ -8,13 +8,23 @@
 Video::Video(const std::string& config_file)
 {
     cv::FileStorage fs(config_file, cv::FileStorage::READ);
+    int camera_id;
 
     if (!fs.isOpened()) {
         throw std::runtime_error("Couldn't open file " + config_file);
     }
 
     // cap_.open("../../testes/new/output.avi"); // rascunho
-    cap_.open((int)fs["camera"]["id"]);
+    fs["camera"]["id"] >> camera_id;
+
+    cap_.open(camera_id);
+
+    if (!cap_.isOpened()) {
+        throw std::runtime_error(
+            "Couldn't open camera with id " + std::to_string(camera_id)
+        );
+    }
+
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, (double)fs["camera"]["width"]);
     cap_.set(cv::CAP_PROP_FRAME_HEIGHT, (double)fs["camera"]["height"]);
     cap_.set(cv::CAP_PROP_FPS, (double)fs["camera"]["fps"]);
