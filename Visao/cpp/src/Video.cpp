@@ -1,86 +1,85 @@
 #include "futbot/Video.hpp"
 
-#include <cstdio>
-#include <iostream>
+#include <format>
+#include <print>
 #include <stdexcept>
 #include <opencv2/imgproc.hpp>
 
-Video::Video(const std::string& config_file)
+constexpr int fontName = cv::FONT_HERSHEY_PLAIN;
+
+Video::Video(const std::string& configFile)
 {
-    cv::FileStorage fs(config_file, cv::FileStorage::READ);
-    int camera_id;
+    cv::FileStorage fs(configFile, cv::FileStorage::READ);
 
     if (!fs.isOpened()) {
-        throw std::runtime_error("Couldn't open file " + config_file);
+        auto errorMsg = std::format("Couldn't open file `{}`", configFile);
+        throw std::runtime_error(errorMsg);
     }
 
-    // cap_.open("../../testes/new/output.avi"); // rascunho
-    fs["camera"]["id"] >> camera_id;
+    int cameraId = (int)fs["camera"]["id"];
 
-    cap_.open(camera_id);
-
-    if (!cap_.isOpened()) {
-        throw std::runtime_error(
-            "Couldn't open camera with id " + std::to_string(camera_id)
-        );
+    m_cap.open("../testes/new/output.avi"); // rascunho
+    // // m_cap.open(cameraId);
+    if (!m_cap.isOpened()) {
+        auto errorMsg = std::format( "Couldn't open camera of ID `{}`", cameraId);
+        throw std::runtime_error(errorMsg);
     }
 
-    cap_.set(cv::CAP_PROP_FRAME_WIDTH, (double)fs["camera"]["width"]);
-    cap_.set(cv::CAP_PROP_FRAME_HEIGHT, (double)fs["camera"]["height"]);
-    cap_.set(cv::CAP_PROP_FPS, (double)fs["camera"]["fps"]);
+    m_cap.set(cv::CAP_PROP_FRAME_WIDTH, (double)fs["camera"]["width"]);
+    m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, (double)fs["camera"]["height"]);
+    m_cap.set(cv::CAP_PROP_FPS, (double)fs["camera"]["fps"]);
 
-    fs["window"]["name"] >> win_name_;
-    fs["window"]["delay"] >> win_delay_;
+    fs["window"]["name"] >> m_windowName;
+    fs["window"]["delay"] >> m_windowDelay;
 
-    cv::namedWindow(win_name_);
+    cv::namedWindow(m_windowName);
 
     fs.release();
 }
 
 Video::~Video()
 {
-    cap_.release();
-    cv::destroyWindow(win_name_);
+    m_cap.release();
+    cv::destroyWindow(m_windowName);
 }
 
-void Video::update()
+void Video::updateFrame()
 {
-    cap_ >> frame.raw;
+    // Get the frame from video capture
+    m_cap >> frame.raw;
 
+#ifdef MY_DEBUG
     if (frame.raw.empty()) {
-        std::cout << "Rewinding video..." << std::endl;
-        cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
-        cap_ >> frame.raw;
+        // Rewind video if `cameraId` was a path to a video file
+        std::println("Rewinding video...");
+        m_cap.set(cv::CAP_PROP_POS_FRAMES, 0);
+        m_cap >> frame.raw;
     }
+#endif
 
+    // Create a copy of the frame in HSV color space
     cv::cvtColor(frame.raw, frame.hsv, cv::COLOR_BGR2HSV);
 }
 
-int Video::show()
+int Video::showFrame()
 {
-    cv::imshow(win_name_, frame.raw);
-    return cv::waitKey(win_delay_);
+    cv::imshow(m_windowName, frame.raw);
+    return cv::waitKey(m_windowDelay);
 }
 
-void Video::draw_text(const cv::String& text, const cv::Point& org, const cv::Scalar& color)
+void Video::putText(const cv::String& text, const cv::Point& org,
+    const cv::Scalar& color)
 {
-    cv::putText(frame.raw, text, org, cv::FONT_HERSHEY_PLAIN, 1.5, color, 2);
+    cv::putText(frame.raw, text, org, fontName, 1.5, color, 2);
 }
 
-void Video::draw_circle(const cv::Point& center, const cv::String& text)
+void Video::drawCircle(const cv::Point& center, const cv::String& text)
 {
-    // const cv::String text = std::to_string(xy.x) + ',' + std::to_string(xy.y);
-
     cv::circle(frame.raw, center, 3, cv::Scalar(0, 0, 255), 2);
-    cv::putText(frame.raw, text, center, cv::FONT_HERSHEY_PLAIN, 0.8, cv::Scalar(0, 0, 0));
+    cv::putText(frame.raw, text, center, fontName, 0.8, cv::Scalar(0, 0, 0));
 }
 
-std::string Video::win_name() const
+void Video::drawRect(const cv::Rect& rect)
 {
-    return win_name_;
-}
-
-int Video::win_delay() const
-{
-    return win_delay_;
+    cv::rectangle(frame.raw, rect, cv::Scalar(255, 255, 0), 2);
 }

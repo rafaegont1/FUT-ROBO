@@ -7,125 +7,129 @@ Color::Color()
 {
 }
 
-Color::Color(const std::string& name) : name_{name}
+Color::Color(const std::string& name) : m_name{name}
 {
-    file_open();
+    readFile();
 }
 
-void Color::file_open()
+void Color::readFile()
 {
-    cv::FileStorage fs(name_ + ".yaml", cv::FileStorage::READ);
+    cv::FileStorage fs(std::format("cfg/{}.yaml", m_name), cv::FileStorage::READ);
 
     if (fs.isOpened()) {
-        fs["lowerb"] >> lowerb_;
-        fs["upperb"] >> upperb_;
-        file_loaded_ = true;
+        fs["lowerb"] >> m_lowerb;
+        fs["upperb"] >> m_upperb;
+        m_fileLoaded = true;
         fs.release();
     }
 }
 
-void Color::select(Video& video, const std::string& config_file)
+void Color::showSelectedColor(const Video& video) const
 {
-    // std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
-    cv::FileStorage fs;
-
-    fs.open(config_file, cv::FileStorage::READ);
-    int hue_tol = (int)fs["color"]["hue_tol"];
-    int sat_tol = (int)fs["color"]["sat_tol"];
-    fs.release();
-
-    std::optional<cv::Point> click_point = std::nullopt;
-
-    cv::setMouseCallback(video.win_name(), click_event, &click_point);
-    do {
-        video.update();
-        // const std::string win_text = "Selecione a cor " + name_;
-        // cv::putText(video.frame.raw, win_text, cv::Point(0, video.frame.raw.rows - 10), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(80, 80, 80), 2);
-        video.draw_text("Selecione a cor " + name_);
-        int key = video.show();
-        // cv::imshow(video.win_name(), video.frame.raw);
-        // int key = cv::waitKey(video.win_delay());
-        if (key == 27) exit(EXIT_SUCCESS);
-    } while (!click_point.has_value());
-    cv::setMouseCallback(video.win_name(), nullptr);
-
-    cv::Vec3b click_hsv = video.frame.hsv.at<cv::Vec3b>(click_point->y, click_point->x);
-    // std::cout << "Click Point: (" << click_point->x << ", " << click_point->y << ")" // rascunho
-    //       << " -> H: " << static_cast<int>(click_hsv[0]) // rascunho
-    //       << ", S: " << static_cast<int>(click_hsv[1]) // rascunho
-    //       << ", V: " << static_cast<int>(click_hsv[2]) << std::endl; // rascunho
-
-    lowerb_ = cv::Scalar(
-        std::clamp(static_cast<int>(click_hsv[0]) - hue_tol, 0, 179),
-        std::clamp(static_cast<int>(click_hsv[1]) - sat_tol, 0, 255),
-        20
-    );
-    // std::cout << "lowerb_: " << lowerb_.rows << ' ' << lowerb_.cols << std::endl; // rascunho
-    // std::cout << "lowerb: (" << static_cast<int>(lowerb[0]) << ", " // rascunho
-    //                          << static_cast<int>(lowerb[1]) << ", " // rascunho
-    //                          << static_cast<int>(lowerb[2]) << ")" // rascunho
-    //                          << std::endl; // rascunho
-
-    upperb_ = cv::Scalar(
-        std::clamp(static_cast<int>(click_hsv[0]) + hue_tol, 0, 179),
-        std::clamp(static_cast<int>(click_hsv[1]) + sat_tol, 0, 255),
-        255
-    );
-    // std::cout << "upperb: (" << static_cast<int>(upperb[0]) << ", " // rascunho
-    //                          << static_cast<int>(upperb[1]) << ", " // rascunho
-    //                          << static_cast<int>(upperb[2]) << ")" // rascunho
-    //                          << std::endl; // rascunho
-
-    fs.open(name_ + ".yaml", cv::FileStorage::WRITE);
-    fs << "lowerb" << lowerb_;
-    fs << "upperb" << upperb_;
-    fs.release();
-
-// #if defined(DEBUG)
     cv::Mat mask;
-    cv::inRange(video.frame.hsv, lowerb_, upperb_, mask);
+    cv::inRange(video.frame.hsv, m_lowerb, m_upperb, mask);
 
-    cv::Mat frame_hsv_masked;
-    cv::bitwise_and(video.frame.hsv, video.frame.hsv, frame_hsv_masked, mask);
+    cv::Mat frameMasked;
+    video.frame.raw.copyTo(frameMasked, mask);
 
-    cv::Mat res;
-    cv::cvtColor(frame_hsv_masked, res, cv::COLOR_HSV2BGR);
-
-    cv::imshow(video.win_name(), res);
+    cv::imshow(video.windowName(), frameMasked);
     cv::waitKey();
-// #endif // defined(DEBUG)
 }
 
-const std::vector<cv::Point> Color::find_centroids(const cv::Mat& frame_hsv, double min_area, std::size_t size)
+// static void clickEvent(int event, int x, int y, int flags, void* userdata)
+// {
+//     (void)flags; // Prevent unused parameter warning
+
+//     // Set `usedata` (aka `clickPoint`) value to the clicked point coordenates
+//     if (event == cv::EVENT_LBUTTONDOWN) {
+//         auto clickedPoint = static_cast<std::optional<cv::Point>*>(userdata);
+//         *clickedPoint = cv::Point(x, y);
+//     }
+// }
+
+void Color::select(Video& video, const std::string& configFile)
+{
+    cv::FileStorage fs(configFile, cv::FileStorage::READ);
+    int hueTolerance = (int)fs["color"]["hue_tol"];
+    int satTolerance = (int)fs["color"]["sat_tol"];
+    fs.release();
+
+    std::optional<cv::Point> clickPoint = std::nullopt;
+
+    // Sets mouse callback function
+    cv::setMouseCallback(video.windowName(),
+        [](int event, int x, int y, int flags, void* userdata) -> void {
+            (void)flags; // Prevent unused parameter warning
+            auto& clickPointRef =
+                *static_cast<std::optional<cv::Point>*>(userdata);
+
+            if (event == cv::EVENT_LBUTTONDOWN) {
+                clickPointRef = cv::Point(x, y);
+            }
+        },
+        &clickPoint);
+
+    // Loop until user select a color
+    do {
+        video.updateFrame();
+        video.putText(std::format("Selecione a cor `{}`", m_name));
+        int key = video.showFrame();
+        if (key == 27) { // key == ESC
+            exit(EXIT_SUCCESS);
+        }
+    } while (!clickPoint.has_value());
+
+    // Unsets mouse callback function
+    cv::setMouseCallback(video.windowName(), nullptr);
+
+    cv::Vec3b clickHsv =
+        video.frame.hsv.at<cv::Vec3b>(clickPoint->y, clickPoint->x);
+
+    // Store the selected hsv color
+    m_lowerb = cv::Scalar(
+        std::clamp(static_cast<int>(clickHsv[0]) - hueTolerance, 0, 179),
+        std::clamp(static_cast<int>(clickHsv[1]) - satTolerance, 0, 255),
+        20
+    );
+
+    m_upperb = cv::Scalar(
+        std::clamp(static_cast<int>(clickHsv[0]) + hueTolerance, 0, 179),
+        std::clamp(static_cast<int>(clickHsv[1]) + satTolerance, 0, 255),
+        255
+    );
+
+    fs.open(std::format("cfg/{}.yaml", m_name), cv::FileStorage::WRITE);
+    fs << "lowerb" << m_lowerb;
+    fs << "upperb" << m_upperb;
+    fs.release();
+
+    showSelectedColor(video);
+}
+
+std::vector<cv::Point> Color::findCentroids(const cv::Mat& frameHsv,
+    double minArea, std::size_t size) const
 {
     std::vector<cv::Point> centroids;
 
     cv::Mat mask;
-    cv::inRange(frame_hsv, lowerb_, upperb_, mask);
+    cv::inRange(frameHsv, m_lowerb, m_upperb, mask);
 
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
-        // std::cout << "AREA: " << area << std::endl; // rascunho
 
-        if (area >= min_area) {
-            // std::cout << "color: " << name_ << '\n' // rascunho
-            //           << "area > min_area: " << area << std::endl; // rascunho
-            // std::cout << "area >= min_area\n";
+        if (area >= minArea) {
             cv::Moments M = cv::moments(contour);
 
             if (M.m00 != 0) {
                 int x = static_cast<int>(M.m10 / M.m00);
                 int y = static_cast<int>(M.m01 / M.m00);
+
                 centroids.emplace_back(x, y);
-// #ifdef DEBUG
-                // std::cout << "x, y = " << x << ", " << y << std::endl;
-                // cv::circle(video.frame.raw, centroids.back(), 5, cv::Scalar(255, 0, 0), 3);
-                // const std::string text = std::to_string(x) + ',' + std::to_string(y);
-                // cv::putText(video.frame.raw, text, centroids.back(), cv::FONT_HERSHEY_PLAIN, 0.8, cv::Scalar(255, 255, 0));
-// #endif
+
+                // Found all figures with minimum area
                 if (centroids.size() == size) {
                     break;
                 }
@@ -134,29 +138,4 @@ const std::vector<cv::Point> Color::find_centroids(const cv::Mat& frame_hsv, dou
     }
 
     return centroids;
-}
-
-void Color::click_event(int event, int x, int y, int flags, void* userdata)
-{
-    (void)flags; // Prevent unused parameter warning
-
-    if (event == cv::EVENT_LBUTTONDOWN) {
-        auto clicked_point = static_cast<std::optional<cv::Point>*>(userdata);
-        *clicked_point = cv::Point(x, y);
-    }
-}
-
-const std::string& Color::name() const
-{
-    return name_;
-}
-
-void Color::name(const std::string& new_value)
-{
-    name_ = new_value;
-}
-
-bool Color::file_lodead()
-{
-    return file_loaded_;
 }

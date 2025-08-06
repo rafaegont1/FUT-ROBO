@@ -10,20 +10,22 @@ public:
     Color();
     Color(const std::string& name);
 
-    void select(Video& video, const std::string& config_file);
-    const std::vector<cv::Point> find_centroids(const cv::Mat& frame_hsv, double min_area = 100.0, std::size_t size = 1);
-    const std::string& name() const;
-    void name(const std::string& new_value);
-    bool file_lodead();
+    void select(Video& video, const std::string& configFile);
+    std::vector<cv::Point> findCentroids(const cv::Mat& frameHsv,
+        double minArea = 100.0, std::size_t size = 1) const;
+    void showSelectedColor(const Video& video) const;
+
+    // Getters for member variables
+    const std::string& name() const { return m_name; }
+    bool fileLodead() const { return m_fileLoaded; }
 
 private:
-    static void click_event(int event, int x, int y, int flags, void* userdata);
-    void file_open();
+    void readFile();
 
-    std::string name_;
-    cv::Scalar lowerb_;
-    cv::Scalar upperb_;
-    bool file_loaded_ = false;
+    std::string m_name;
+    cv::Scalar m_lowerb;
+    cv::Scalar m_upperb;
+    bool m_fileLoaded = false;
 };
 
 #endif // COLOR_HPP

@@ -3,25 +3,26 @@
 
 #include "futbot/Color.hpp"
 #include "futbot/Calibration.hpp"
-#include "futbot/Publisher.hpp"
+// #include "futbot/Publisher.hpp"
 
 class Ball {
 public:
-    Ball(const Color& color, const Calibration& calib);
-    const cv::Point& find_pose(Video& video);
-    void publish_pose(Publisher& publisher);
-    const cv::Point& centroid_world() const;
+    Ball(const Calibration& calib);
+    Ball(const Color& color, const Calibration& calib, const std::string& configFile);
+    const cv::Point& findPose(Video& video);
+    // void publish_pose(Publisher& publisher);
+    const cv::Point& centroidWorld() const;
     // std::string centroid_msg() const;
 
 private:
-    void file_read(const std::string& config_file = "../config.yaml");
+    void fileRead(const std::string& configFile);
 
-    Color color_;
-    cv::Point centroid_image_;
-    cv::Point centroid_world_;
-    double min_area_;
-    Calibration calib_;
-    bool found_ = false;
+    Color m_color;
+    cv::Point m_centroidImage;
+    cv::Point m_centroidWorld;
+    double m_minArea;
+    Calibration m_calib;
+    bool m_found = false;
 };
 
 #endif // BALL_HPP

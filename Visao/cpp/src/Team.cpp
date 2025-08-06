@@ -1,172 +1,162 @@
 #include "futbot/Team.hpp"
 
 #include <cmath>
+#include <format>
+#include <print>
 
-Team::Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib)
-: team_color{team_color}, calib_{calib}
+Team::Team(const Color& teamColor, const Color& player1Color,
+    const Color& player2Color, const Calibration& calib,
+    const std::string& configFile) : m_teamColor{teamColor}, m_calib{calib},
+    m_players{player1Color, player2Color}
 {
-    players_[0].name = "";
-    players_[0].color = pink;
-    players_[1].color = yellow;
-    file_read();
+    readConfig(configFile);
 }
 
-void Team::file_read(const std::string& config_file)
+void Team::readConfig(const std::string& configFile)
 {
-    cv::FileStorage fs(config_file, cv::FileStorage::READ);
+    cv::FileStorage fs(configFile, cv::FileStorage::READ);
 
     if (!fs.isOpened()) {
-        throw std::runtime_error("Couldn't open file " + config_file);
+        auto errorMsg = std::format("Couldn't open file `{}`", configFile);
+        throw std::runtime_error(errorMsg);
     }
 
-    fs["color"]["rect_min_area"] >> rect_min_area_;
-    fs["color"]["circle_min_area"] >> circle_min_area_;
-    fs["color"]["roi_size"] >> roi_sz_;
+    fs["color"]["rectMinArea"] >> m_rectMinArea;
+    fs["color"]["circleMinArea"] >> m_circleMinArea;
+    fs["color"]["roiWidth"] >> m_roiRect.width;
+    fs["color"]["roiHeight"] >> m_roiRect.height;
 
     fs.release();
 }
 
-
-void Team::find_poses(Video& video)
+void Team::findPoses(Video& video)
 {
-    std::vector<cv::Point> rect_centroids =
-        team_color.find_centroids(video.frame.hsv, rect_min_area_, 2);
-    // std::cout << "num of centroids: " << rect_centroids.size() << std::endl; // rascunho
+    // Find centroids of figures that meet the minimum area
+    std::vector<cv::Point> centroids =
+        m_teamColor.findCentroids(video.frame.hsv, m_rectMinArea, 2);
 
-    for (auto& p : players_) {
-        p.found = false;
+    // Set players as not found
+    for (auto& player : m_players) {
+        player.found = false;
     }
 
-    for (const auto& centroid_rect_image : rect_centroids) {
-        ROI roi = get_roi(centroid_rect_image, video);
+    // std::println("centroids size: {}", centroids.size()); // rascunho
 
-        if (all_players_found()) break;
+    for (const auto& centroid : centroids) {
+        cv::Mat frameHsvRoi = getRoi(video, centroid);
 
-        for (auto& p : players_) {
-            if (p.found) continue;
+        for (auto& player : m_players) {
+            if (player.found) continue;
 
-            std::vector<cv::Point> centroid_circle_image = p.color.find_centroids(roi.frame_hsv, circle_min_area_);
-            if (centroid_circle_image.empty()) continue;
+            std::vector<cv::Point> centroidCircle =
+                player.color.findCentroids(frameHsvRoi, m_circleMinArea);
+            // Continue if circle with minimum area wasn't found
+            if (centroidCircle.empty()) continue;
 
-            // std::cout << "Player " << p.color.name() << '\n'; // rascunho
-            // std::cout << "rect" << std::endl; // rascunho
-            p.centroid_rect_image = centroid_rect_image;
-            p.centroid_rect_world = calib_.uv_to_xy(centroid_rect_image);
+            player.centroidRect = centroid;
+            player.centroidCircle = centroidCircle.front();
 
-            // std::cout << "circle" << std::endl; // rascunho
-            p.centroid_circle_image = centroid_circle_image[0];
-            // Fix ROI offset
-            p.centroid_circle_image.x += roi.offset.x;
-            p.centroid_circle_image.y += roi.offset.y;
-            p.centroid_circle_world = calib_.uv_to_xy(p.centroid_circle_image);
+#ifdef MY_DEBUG
+            video.drawCircle(player.centroidRect,
+                std::format("{}|{}: {},{}",
+                m_teamColor.name(), player.color.name(), centroid.x, centroid.y));
+#endif // MY_DEBUG
 
-            p.theta = get_theta(p.centroid_rect_world, p.centroid_circle_world);
-            // std::cout << "theta: " << p.theta << " rad\n" // rascunho
-            //           << "theta: " << p.theta*180/M_PI << " °\n"; // rascunho
-
-        const std::string pub_topic = team_color.name() + '|' + p.color.name() + '=' +
-            std::to_string(p.centroid_rect_world.x) + ',' +
-            std::to_string(p.centroid_rect_world.y) + ',' +
-            std::to_string(p.theta*180/M_PI) + ',';
-
-            video.draw_circle(
-                p.centroid_rect_image,
-                team_color.name() + '|' + p.color.name() + '=' + std::to_string(p.centroid_rect_world.x) + ',' + std::to_string(p.centroid_rect_world.y) + ',' + std::to_string(p.theta*180/M_PI)
-            );
-
-            p.found = true;
+            player.found = true;
+            std::println("Found player: {}|{}", m_teamColor.name(), player.color.name()); // rascunho
         }
+
+        if (allPlayersFound()) break;
     }
 }
 
-void Team::publish_poses(Publisher& pub, Team::MatchSide match_side)
-{
-    constexpr double RAD2DEG = 180 / M_PI;
+// void Team::publish_poses(Publisher& pub, Team::MatchSide match_side)
+// {
+//     constexpr double RAD2DEG = 180 / M_PI;
 
-    // auto pub_topic = [this](const Team::Player& p, Team::MatchSide match_side) -> std::string {
-    //     const std::string home_or_away =
-    //         match_side == MatchSide::HOME ? "HOME" :
-    //         match_side == MatchSide::AWAY ? "AWAY" :
-    //         "UNKNOWN";
-    //     const char team_char = std::toupper(this->team_color.name()[0]);
-    //     const char player_char = std::toupper(p.color.name()[0]);
+//     // auto pub_topic = [this](const Team::Player& p, Team::MatchSide match_side) -> std::string {
+//     //     const std::string home_or_away =
+//     //         match_side == MatchSide::HOME ? "HOME" :
+//     //         match_side == MatchSide::AWAY ? "AWAY" :
+//     //         "UNKNOWN";
+//     //     const char team_char = std::toupper(this->team_color.name()[0]);
+//     //     const char player_char = std::toupper(p.color.name()[0]);
 
-    //     return home_or_away + '-' + team_char + player_char;
-    // };
+//     //     return home_or_away + '-' + team_char + player_char;
+//     // };
 
-    for (const auto& p : players_) {
-        const std::string pub_msg =
-            std::to_string(p.centroid_rect_world.x) + ',' +
-            std::to_string(p.centroid_rect_world.y) + ',' +
-            std::to_string(static_cast<int>(p.theta * RAD2DEG)) + ',';
-        const std::string pub_topic = home_or_away(match_side) + '-' +
-            static_cast<char>(std::toupper(this->team_color.name()[0])) +
-            static_cast<char>(std::toupper(p.color.name()[0]));
+//     for (const auto& p : players_) {
+//         const std::string pub_msg =
+//             std::to_string(p.centroid_rect_world.x) + ',' +
+//             std::to_string(p.centroid_rect_world.y) + ',' +
+//             std::to_string(static_cast<int>(p.theta * RAD2DEG)) + ',';
+//         const std::string pub_topic = home_or_away(match_side) + '-' +
+//             static_cast<char>(std::toupper(this->team_color.name()[0])) +
+//             static_cast<char>(std::toupper(p.color.name()[0]));
 
-        // std::cout << "Publishing in topic " << pub_topic << std::endl; // rascunho
-        pub.publish(pub_msg, pub_topic);
-    }
-}
+//         // std::cout << "Publishing in topic " << pub_topic << std::endl; // rascunho
+//         pub.publish(pub_msg, pub_topic);
+//     }
+// }
 
 const std::array<Team::Player, 2>& Team::players() const
 {
-    return players_;
+    return m_players;
 }
 
-inline std::string Team::home_or_away(Team::MatchSide match_side) const
+// inline std::string Team::homeOrAway(Team::MatchSide matchSide) const
+// {
+//     return matchSide == MatchSide::HOME ? "HOME" :
+//            matchSide == MatchSide::AWAY ? "AWAY" :
+//            "UNKNOWN";
+// }
+
+cv::Mat Team::getRoi(Video& video, const cv::Point& centroid)
 {
-    return match_side == MatchSide::HOME ? "HOME" :
-           match_side == MatchSide::AWAY ? "AWAY" :
-           "UNKNOWN";
+    const int topLeftX = centroid.x - m_roiRect.width / 2;
+    const int topLefty = centroid.y - m_roiRect.height / 2;
+    const int maxX = video.frame.hsv.cols - m_roiRect.width;
+    const int maxY = video.frame.hsv.rows - m_roiRect.height;
+
+    m_roiRect.x = std::clamp(topLeftX, 0, maxX);
+    m_roiRect.y = std::clamp(topLefty, 0, maxY);
+
+#ifdef MY_DEBUG
+    video.drawRect(m_roiRect);
+#endif // MY_DEBUG
+
+    cv::Mat frameHsvRoi = video.frame.hsv(m_roiRect);
+
+    return frameHsvRoi;
 }
 
-Team::ROI Team::get_roi(const cv::Point& center, const Video& video)
+// double Team::getTheta(const cv::Point& rectPoint, const cv::Point& circlePoint)
+// {
+//     int deltaX = circlePoint.y - rectPoint.y;
+//     int deltaY = circlePoint.x - rectPoint.x;
+//     // std::cout << "deltaX: " << deltaX << '\n'  // rascunho
+//     //           << "deltaY: " << deltaY << '\n'; // rascunho
+//     return std::atan2(deltaX, deltaY);
+// }
+
+bool Team::allPlayersFound() const
 {
-    ROI roi;
-
-    int v_start = std::max(0, center.y - roi_sz_);
-    int v_end = std::min(video.frame.hsv.rows, center.y + roi_sz_);
-    int u_start = std::max(0, center.x - roi_sz_);
-    int u_end = std::min(video.frame.hsv.cols, center.x + roi_sz_);
-
-    cv::Range row_range(v_start, v_end);
-    cv::Range col_range(u_start, u_end);
-
-    roi.frame_hsv = video.frame.hsv(row_range, col_range);
-    roi.offset.x = u_start;
-    roi.offset.y = v_start;
-
-    return roi;
-}
-
-double Team::get_theta(const cv::Point& rect_point, const cv::Point& circle_point)
-{
-    int delta_x = circle_point.y - rect_point.y;
-    int delta_y = circle_point.x - rect_point.x;
-    // std::cout << "delta_x: " << delta_x << '\n'  // rascunho
-    //           << "delta_y: " << delta_y << '\n'; // rascunho
-
-    return std::atan2(delta_x, delta_y);
-}
-
-bool Team::all_players_found()
-{
-    for (const auto& p : players_) {
-        if (!p.found) return false;
+    for (const auto& player : m_players) {
+        if (!player.found) return false;
     }
 
     return true;
 }
 
-void Team::invert_theta_angles()
-{
-    for (auto& p : players_) {
-        if (p.theta > 0) {
-            p.theta -= 180.0;
-        }
-        // NOTE: aqui é `if theta<=0` ou `else`?
-        if (p.theta <= 0) {
-            p.theta += 180.0;
-        }
-    }
-}
+// void Team::invertThetaAngles()
+// {
+//     for (auto& player : m_players) {
+//         if (player.theta > 0) {
+//             player.theta -= 180.0;
+//         }
+//         // NOTE: aqui é `if theta<=0` ou `else`?
+//         if (player.theta <= 0) {
+//             player.theta += 180.0;
+//         }
+//     }
+// }

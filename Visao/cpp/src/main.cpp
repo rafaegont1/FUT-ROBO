@@ -1,82 +1,79 @@
+#include <cstdlib>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
-#include <chrono> // rascunho
+// #include <chrono> // rascunho
 #include "futbot/Video.hpp"
 #include "futbot/Calibration.hpp"
 #include "futbot/Color.hpp"
 #include "futbot/Team.hpp"
-#include "futbot/Publisher.hpp"
-#include "futbot/Ball.hpp"
+// #include "futbot/Publisher.hpp"
+// #include "futbot/Ball.hpp"
 
-static const std::string config_file = "../config.yaml";
 constexpr double RAD2DEG = 180 / M_PI;
+constexpr std::string configFile = "config.yaml";
 
-inline std::string player_coord_to_string(const Team::Player& p)
-{
-    return std::to_string(p.centroid_rect_world.x) + ',' +
-           std::to_string(p.centroid_rect_world.y) + ',' +
-           std::to_string(static_cast<int>(p.theta*RAD2DEG)) + ',';
-}
+// inline std::string playerCoordToString(const Team::Player& player)
+// {
+//     return std::format("{},{},{}", player.centroid_rect_world.x,
+//         player.centroid_rect_world.y, static_cast<int>(player.theta*RAD2DEG));
+// }
 
 // int main(int argc, char* argv[])
 int main()
 {
-    // if (argc < 2) {
-    //     std::cerr << "usage: " << argv[0] << " <config.yaml file>" << std::endl;
-    // }
+    // Publisher publisher("MANAGER", "tcp://localhost:1883");
 
-    Video video(config_file);
-    Publisher publisher("MANAGER", "tcp://localhost:1883");
-
+    Video video(configFile);
     Calibration calib;
+
     calib.calibrate(video);
 
     Color green("verde");
-    Color blue("azul");
+    // Color blue("azul");
     Color pink("rosa");
     Color yellow("amarelo");
-    Color orange("laranja");
+    // Color orange("laranja");
 
-    if (!green.file_lodead()) green.select(video, config_file);
-    if (!blue.file_lodead()) blue.select(video, config_file);
-    if (!pink.file_lodead()) pink.select(video, config_file);
-    if (!yellow.file_lodead()) yellow.select(video, config_file);
-    if (!orange.file_lodead()) orange.select(video, config_file);
+    if (!green.fileLodead()) green.select(video, configFile);
+    // if (!blue.fileLodead()) blue.select(video, configFile);
+    if (!pink.fileLodead()) pink.select(video, configFile);
+    if (!yellow.fileLodead()) yellow.select(video, configFile);
+    // if (!orange.fileLodead()) orange.select(video, configFile);
 
-    Team team_green(green, pink, yellow, calib);
-    Team team_blue(blue, pink, yellow, calib);
-    Ball ball(orange, calib);
+    Team teamGreen(green, pink, yellow, calib, configFile);
+    // static Team teamBlue(calib);
+    // static Ball ball(calib);
 
     try {
         int key;
 
         do {
             // auto start_time = std::chrono::high_resolution_clock::now(); // rascunho
-            video.update();
+            video.updateFrame();
 
-            team_green.find_poses(video);
-            team_blue.find_poses(video);
-            ball.find_pose(video);
+            teamGreen.findPoses(video);
+            // teamBlue.findPoses(video);
+            // ball.findPose(video);
 
-            team_green.publish_poses(publisher, Team::MatchSide::HOME);
-            team_blue.publish_poses(publisher, Team::MatchSide::HOME);
+            // team_green.publish_poses(publisher, Team::MatchSide::HOME);
+            // team_blue.publish_poses(publisher, Team::MatchSide::HOME);
 
-            team_green.invert_theta_angles();
-            team_blue.invert_theta_angles();
+            // teamGreen.invertThetaAngles();
+            // teamBlue.invertThetaAngles();
 
-            team_green.publish_poses(publisher, Team::MatchSide::AWAY);
-            team_blue.publish_poses(publisher, Team::MatchSide::AWAY);
+            // team_green.publish_poses(publisher, Team::MatchSide::AWAY);
+            // team_blue.publish_poses(publisher, Team::MatchSide::AWAY);
 
-            ball.publish_pose(publisher);
+            // ball.publish_pose(publisher);
 
-            key = video.show();
+            key = video.showFrame();
             // auto end_time = std::chrono::high_resolution_clock::now(); // rascunho
             // std::chrono::duration<double, std::milli> time = end_time - start_time; // rascunho
             // std::cout << "Took " << time.count() << " ms to run.\n"; // rascunho
         } while (key != 27);
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::println(std::cerr, "Error: {}", e.what());
         return 1;
     }
 

@@ -1,6 +1,10 @@
 #include "futbot/Calibration.hpp"
+#include <format>
+#include <print>
 
-const std::array<std::array<int, 2>, 5> Calibration::XY_POINTS = {{
+constexpr std::string calibConfigFile = "cfg/calib.yaml"
+
+constexpr std::array<std::array<int, 2>, 5> Calibration::XY_POINTS = {{
     {0, 0}, 
     {-1190, 800}, 
     {1190, 800}, 
@@ -8,7 +12,7 @@ const std::array<std::array<int, 2>, 5> Calibration::XY_POINTS = {{
     {-1190, -800}
 }};
 
-cv::Mat Calibration::coef_calc(const std::vector<std::vector<int>>& uv_points)
+cv::Mat Calibration::calculateCoeff(const std::vector<std::vector<int>>& uv_points)
 {
     int n = uv_points.size();
     
@@ -49,23 +53,21 @@ cv::Mat Calibration::coef_calc(const std::vector<std::vector<int>>& uv_points)
 }
 
 // Função de callback para o evento de clique
-void Calibration::click_event(int event, int x, int y, int, void* param)
-{
-    if (event == cv::EVENT_LBUTTONDOWN) {
-        auto uv_points = static_cast<std::vector<std::vector<int>>*>(param);
-        // std::cout << "Ponto selecionado: " << x << ", " << y << std::endl;
-        uv_points->push_back({x, y});
-    }
-}
+// void Calibration::clickEvent(int event, int x, int y, int, void* param)
+// {
+//     if (event == cv::EVENT_LBUTTONDOWN) {
+//         auto uv_points = static_cast<std::vector<std::vector<int>>*>(param);
+//         // std::println("Ponto selecionado: {}, {}", x, y);
+//         uv_points->push_back({x, y});
+//     }
+// }
 
-bool Calibration::file_read()
+bool Calibration::fileRead()
 {
-    cv::FileStorage fs;
-
-    fs.open("Calibration.yaml", cv::FileStorage::READ);
+    cv::FileStorage fs(calibConfigFile, cv::FileStorage::READ);
 
     if (fs.isOpened()) {
-        fs["cte"] >> cte_;
+        fs["cte"] >> m_cte;
         fs.release();
         return true;
     }
@@ -73,62 +75,61 @@ bool Calibration::file_read()
     return false;
 }
 
-void Calibration::file_write()
+void Calibration::fileWrite()
 {
-    cv::FileStorage fs("Calibration.yaml", cv::FileStorage::WRITE);
-    fs << "cte" << cte_;
+    cv::FileStorage fs(calibConfigFile, cv::FileStorage::WRITE);
+    fs << "cte" << m_cte;
     fs.release();
 }
 
 // Função de calibração
 void Calibration::calibrate(Video& video)
 {
-    bool file_loaded = file_read();
+    bool isFileLoaded = fileRead();
 
-    if (file_loaded) {
+    if (isFileLoaded) {
         return;
     }
 
-    std::vector<std::vector<int>> uv_points;
+    std::vector<std::vector<int>> uvPoints;
 
     // Sets mouse callback function
-    cv::setMouseCallback(video.win_name(), click_event, &uv_points);
+    cv::setMouseCallback(video.windowName(),
+        [](int event, int x, int y, int flags, void* userdata) -> void {
+            (void)flags; // Prevent unused parameter warning
+            auto& uvPointsRef =
+                *static_cast<std::vector<std::vector<int>>*>(userdata);
+
+            if (event == cv::EVENT_LBUTTONDOWN) {
+                std::println("Ponto selecionado: {}, {}", x, y); // rascunho
+                uvPointsRef.push_back({x, y});
+            }
+        },
+        &uvPoints);
 
     // Coleta pontos UV clicando na imagem até que tenhamos o número de pontos necessário
-    while (uv_points.size() < XY_POINTS.size()) {
-        video.update();
-        video.draw_text("Select the " + std::to_string(uv_points.size() + 1) + " point");
-        int key = video.show();
-        if (key == 27) exit(EXIT_SUCCESS);
-        // cv::imshow(video.win_name(), video.frame.raw);
-        // cv::waitKey(video.win_delay());
+    while (uvPoints.size() < XY_POINTS.size()) {
+        video.updateFrame();
+        video.putText(std::format("Select the {} point", uvPoints.size() + 1));
+        int key = video.showFrame();
+        if (key == 27) { // key == ESC
+            exit(EXIT_SUCCESS);
+        }
     }
 
     // Unsets mouse callback function
-    cv::setMouseCallback(video.win_name(), nullptr);
+    cv::setMouseCallback(video.windowName(), nullptr);
 
     // Calcula a constante de calibração
-    cte_ = coef_calc(uv_points);
-    // std::cout << "Calibração concluída!" << std::endl;
-    // std::cout << "cte = " << cte_ << std::endl;  // Rascunho de saída para visualização
+    m_cte = calculateCoeff(uvPoints);
 
-    file_write();
+    fileWrite();
 }
 
-cv::Point Calibration::uv_to_xy(const cv::Point& uv) const
+cv::Point Calibration::uvToXy(const cv::Point& uv) const
 {
-// std::vector<int> uv_to_xy(const std::vector<int>& uv, const cv::Mat& cte) {
-    /**
-     * Transforma coordenadas UV em coordenadas XY no espaço físico, utilizando as constantes de calibração.
-     *
-     * @param uv: Coordenadas UV em pixels (u, v) a serem convertidas.
-     * @param cte: Constantes de calibração calculadas para a transformação.
-     *
-     * @return: Coordenadas XY correspondentes aos pontos UV em unidades físicas (como milímetros).
-     */
-
     // Formata os coeficientes de calibração
-    cv::Mat coefs = cte_.rowRange(0, 2);
+    cv::Mat coefs = m_cte.rowRange(0, 2);
 
     // Monta o vetor de entrada com o ponto UV e seus quadrados
     cv::Mat imag = (cv::Mat_<double>(1, 5) << 1.0, uv.x, uv.y, std::pow(uv.x, 2), std::pow(uv.y, 2));
@@ -137,14 +138,9 @@ cv::Point Calibration::uv_to_xy(const cv::Point& uv) const
     cv::Mat out = coefs * imag.t();
 
     // Retorna as coordenadas XY arredondadas e como inteiros
-    // std::vector<int> xy = {static_cast<int>(std::round(out.at<double>(0, 0))),
-    //                        static_cast<int>(std::round(out.at<double>(1, 0)))};
     cv::Point xy;
     xy.x = static_cast<int>(std::round(out.at<double>(0, 0)));
     xy.y = static_cast<int>(std::round(out.at<double>(1, 0)));
-
-    // std::cout << "(u, v): " << uv.x << '\t' << uv.y << '\n'  // rascunho
-    //           << "(x, y): " << xy.x << '\t' << xy.y << '\n'; // rascunho
 
     return xy;
 }

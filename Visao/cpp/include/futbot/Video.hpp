@@ -14,24 +14,22 @@ public:
     Video(const std::string& config_file);
     virtual ~Video();
 
-    void update();
-    int show();
-    void draw_text(
-        const cv::String& text,
-        const cv::Point& org = cv::Point(0, 20),
-        const cv::Scalar& color = cv::Scalar(80, 80, 80)
-    );
-    void draw_circle(const cv::Point& center, const cv::String& text);
+    void updateFrame();
+    int showFrame();
+    void putText(const cv::String& text, const cv::Point& org = cv::Point(0, 20),
+        const cv::Scalar& color = cv::Scalar(80, 80, 80));
+    void drawCircle(const cv::Point& center, const cv::String& text);
+    void drawRect(const cv::Rect& rect);
 
-    std::string win_name() const;
-    int win_delay() const;
+    std::string windowName() const { return m_windowName; }
+    int windowDelay() const { return m_windowDelay; }
 
     Frame frame;
 
 private:
-    cv::VideoCapture cap_;
-    std::string win_name_;
-    int win_delay_;
+    cv::VideoCapture m_cap;
+    std::string m_windowName;
+    int m_windowDelay;
 };
 
 #endif // VIDEO_HPP

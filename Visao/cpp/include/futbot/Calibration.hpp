@@ -8,17 +8,16 @@
 class Calibration {
 public:
     void calibrate(Video& video);
-    cv::Point uv_to_xy(const cv::Point& uv) const;
+    cv::Point uvToXy(const cv::Point& uv) const;
 
 private:
-    static void click_event(int event, int x, int y, int, void* param);
-    cv::Mat coef_calc(const std::vector<std::vector<int>>& uv_points);
-    bool file_read();
-    void file_write();
+    cv::Mat calculateCoeff(const std::vector<std::vector<int>>& uv_points);
+    bool fileRead();
+    void fileWrite();
 
     static const std::array<std::array<int, 2>, 5> XY_POINTS;
 
-    cv::Mat cte_;
-}; // namespace Calibration
+    cv::Mat m_cte;
+};
 
 #endif // CALIBRATION_HPP

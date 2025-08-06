@@ -3,53 +3,55 @@
 
 #include "futbot/Color.hpp"
 #include "futbot/Calibration.hpp"
-#include "futbot/Publisher.hpp"
+// #include "futbot/Publisher.hpp"
 
 class Team {
 public:
-    enum class MatchSide {
+    enum class MatchSide : uint8_t {
         HOME,
         AWAY,
     };
 
     struct Player {
+        Player(const Color& color) : color{color} {}
+
         std::string name;
-        cv::Point centroid_circle_image;
-        cv::Point centroid_circle_world;
-        cv::Point centroid_rect_image;
-        cv::Point centroid_rect_world;
-        double theta;
-        bool found = false;
-        Color color;
+        cv::Point centroidCircle;
+        cv::Point centroidRect;
+        bool found;
+        const Color& color;
     };
 
-    Team(const Color& team_color, const Color& pink, const Color& yellow, const Calibration& calib);
-    void find_poses(Video& video);
-    void publish_poses(Publisher& pub, Team::MatchSide match_side);
-    inline std::string home_or_away(Team::MatchSide match_side) const;
+    Team(const Color& teamColor, const Color& player1Color,
+        const Color& player2Color, const Calibration& calib,
+        const std::string& configFile);
+    void readConfig(const std::string& configFile);
+    void findPoses(Video& video);
+    // void publish_poses(Publisher& pub, Team::MatchSide match_side);
+    // inline std::string homeOrAway(Team::MatchSide matchSide) const;
     const std::array<Team::Player, 2>& players() const;
-    void invert_theta_angles();
+    // void invertThetaAngles();
 
 private:
-    struct ROI {
-        cv::Mat frame_hsv;
-        cv::Point offset;
-    };
+    // struct ROI {
+    //     cv::Mat frameHsv;
+    //     cv::Point pt1;
+    //     cv::Point pt2;
+    // };
 
-    void file_read(const std::string& config_file = "../config.yaml");
-    Team::ROI get_roi(const cv::Point& center, const Video& video);
+    cv::Mat getRoi(Video& video, const cv::Point& centroid);
     // void find_player(Team::Player& player, cv::Point& centroid, Video& video);
-    double get_theta(const cv::Point& rect_point, const cv::Point& circle_point);
-    bool all_players_found();
+    // double getTheta(const cv::Point& rectPoint, const cv::Point& circlePoint);
+    bool allPlayersFound() const;
 
-    std::string name_;
-    Color team_color;
-    std::array<Player, 2> players_;
-    int roi_sz_;
-    const Calibration& calib_;
-    double rect_min_area_;
-    double circle_min_area_;
-    // Team::MatchSide match_side_;
+    std::string m_name;
+    const Color& m_teamColor;
+    const Calibration& m_calib;
+    std::array<Player, 2> m_players;
+    double m_rectMinArea;
+    double m_circleMinArea;
+    cv::Rect m_roiRect;
+    // Team::MatchSide m_matchSide;
 };
 
 #endif // TEAM_HPP

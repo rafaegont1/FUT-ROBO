@@ -1,55 +1,57 @@
 #include "futbot/Ball.hpp"
 
-Ball::Ball(const Color& color, const Calibration& calib)
-: color_{color}, calib_{calib}
+Ball::Ball(const Calibration& calib) : m_calib{calib}
 {
-    file_read();
 }
 
-const cv::Point& Ball::find_pose(Video& video)
+Ball::Ball(const Color& color, const Calibration& calib, const std::string& configFile)
+    : m_color{color}, m_calib{calib}
+{
+    fileRead(configFile);
+}
+
+const cv::Point& Ball::findPose(Video& video)
 {
     std::vector<cv::Point> centroids =
-        color_.find_centroids(video.frame.hsv, min_area_);
+        m_color.findCentroids(video.frame.hsv, m_minArea);
 
     if (centroids.empty()) {
-        found_ = false;
+        m_found = false;
     } else {
-        centroid_image_ = centroids[0];
-        centroid_world_ = calib_.uv_to_xy(centroids[0]);
-        const std::string circle_text = "BALL: " +
-            std::to_string(centroid_world_.x) + ',' +
-            std::to_string(centroid_world_.y) + ',';
-        video.draw_circle(centroid_image_, circle_text);
-        found_ = true;
+        m_centroidImage = centroids[0];
+        m_centroidWorld = m_calib.uvToXy(centroids[0]);
+        auto circleText = std::format("BALL: {},{},", m_centroidWorld.x, m_centroidWorld.y);
+        video.drawCircle(m_centroidImage, circleText);
+        m_found = true;
     }
 
-    return centroid_world_;
+    return m_centroidWorld;
 }
 
-void Ball::publish_pose(Publisher& publisher)
-{
-    const std::string pub_msg =
-        std::to_string(centroid_world_.x) + ',' +
-        std::to_string(centroid_world_.y) + ',';
-    const std::string pub_topic = "BALL";
+// void Ball::publish_pose(Publisher& publisher)
+// {
+//     const std::string pub_msg =
+//         std::to_string(centroid_world_.x) + ',' +
+//         std::to_string(centroid_world_.y) + ',';
+//     const std::string pub_topic = "BALL";
 
-    publisher.publish(pub_msg, pub_topic);
+//     publisher.publish(pub_msg, pub_topic);
+// }
+
+const cv::Point& Ball::centroidWorld() const
+{
+    return m_centroidWorld;
 }
 
-const cv::Point& Ball::centroid_world() const
+void Ball::fileRead(const std::string& configFile)
 {
-    return centroid_world_;
-}
-
-void Ball::file_read(const std::string& config_file)
-{
-    cv::FileStorage fs(config_file, cv::FileStorage::READ);
+    cv::FileStorage fs(configFile, cv::FileStorage::READ);
 
     if (!fs.isOpened()) {
-        throw std::runtime_error("Couldn't open file " + config_file);
+        throw std::runtime_error(std::format("Couldn't open file {}", configFile));
     }
 
-    fs["color"]["ball_min_area"] >> min_area_;
+    fs["color"]["ballMinArea"] >> m_minArea;
 
     fs.release();
 }
