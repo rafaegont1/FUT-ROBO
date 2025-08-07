@@ -6,28 +6,26 @@
 
 class Video {
 public:
-    struct Frame {
-        cv::Mat raw;
-        cv::Mat hsv;
-    };
-
-    Video(const std::string& config_file);
+    Video(const std::string& configFile);
     virtual ~Video();
 
     void updateFrame();
     int showFrame();
     void putText(const cv::String& text, const cv::Point& org = cv::Point(0, 20),
         const cv::Scalar& color = cv::Scalar(80, 80, 80));
-    void drawCircle(const cv::Point& center, const cv::String& text);
+    void drawCircle(const cv::Point& center, int radius);
     void drawRect(const cv::Rect& rect);
 
-    std::string windowName() const { return m_windowName; }
+    // Member variables getters
+    const std::string& windowName() const { return m_windowName; }
     int windowDelay() const { return m_windowDelay; }
-
-    Frame frame;
+    const cv::Mat& frame() const { return m_frame; };
+    const cv::Mat& frameHsv() const { return m_frameHsv; };
 
 private:
     cv::VideoCapture m_cap;
+    cv::Mat m_frame;
+    cv::Mat m_frameHsv;
     std::string m_windowName;
     int m_windowDelay;
 };

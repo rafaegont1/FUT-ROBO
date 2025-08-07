@@ -1,16 +1,18 @@
 #include <cstdlib>
+#include <format>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <print>
 #include <string>
 // #include <chrono> // rascunho
 #include "futbot/Video.hpp"
-#include "futbot/Calibration.hpp"
-#include "futbot/Color.hpp"
-#include "futbot/Team.hpp"
+// #include "futbot/Calibration.hpp"
+// #include "futbot/Color.hpp"
+// #include "futbot/Team.hpp"
 // #include "futbot/Publisher.hpp"
-// #include "futbot/Ball.hpp"
+#include "futbot/Ball.hpp"
 
-constexpr double RAD2DEG = 180 / M_PI;
+// constexpr double RAD2DEG = 180 / M_PI;
 constexpr std::string configFile = "config.yaml";
 
 // inline std::string playerCoordToString(const Team::Player& player)
@@ -25,25 +27,28 @@ int main()
     // Publisher publisher("MANAGER", "tcp://localhost:1883");
 
     Video video(configFile);
-    Calibration calib;
+    // Calibration calib;
 
-    calib.calibrate(video);
+    // calib.calibrate(video);
 
-    Color green("verde");
-    // Color blue("azul");
-    Color pink("rosa");
-    Color yellow("amarelo");
-    // Color orange("laranja");
+    // Color green("verde");
+    // // Color blue("azul");
+    // Color pink("rosa");
+    // Color yellow("amarelo");
+    // // Color orange("laranja");
 
-    if (!green.fileLodead()) green.select(video, configFile);
-    // if (!blue.fileLodead()) blue.select(video, configFile);
-    if (!pink.fileLodead()) pink.select(video, configFile);
-    if (!yellow.fileLodead()) yellow.select(video, configFile);
-    // if (!orange.fileLodead()) orange.select(video, configFile);
+    // if (!green.fileLodead()) green.select(video, configFile);
+    // // if (!blue.fileLodead()) blue.select(video, configFile);
+    // if (!pink.fileLodead()) pink.select(video, configFile);
+    // if (!yellow.fileLodead()) yellow.select(video, configFile);
+    // // if (!orange.fileLodead()) orange.select(video, configFile);
 
-    Team teamGreen(green, pink, yellow, calib, configFile);
-    // static Team teamBlue(calib);
-    // static Ball ball(calib);
+    // Team teamGreen(green, pink, yellow, calib, configFile);
+    // // static Team teamBlue(calib);
+    Ball ball;
+
+    ball.selectColor(video);
+    ball.showSelectedColor(video);
 
     try {
         int key;
@@ -52,9 +57,21 @@ int main()
             // auto start_time = std::chrono::high_resolution_clock::now(); // rascunho
             video.updateFrame();
 
-            teamGreen.findPoses(video);
+            // teamGreen.findPoses(video);
             // teamBlue.findPoses(video);
-            // ball.findPose(video);
+            auto ballResult = ball.findCentroid(video.frameHsv());
+            if (ballResult.has_value()) {
+                const auto& [ballCentroid, ballRadius] = ballResult.value();
+                video.drawCircle(ballCentroid, ballRadius);
+                video.putText(
+                    std::format("{:.2f},{:.2f}|{:.2f}",
+                        ballCentroid.x, ballCentroid.y, ballRadius
+                    ),
+                    ballCentroid
+                );
+            } else {
+                std::println("Ball wasn't found!");
+            }
 
             // team_green.publish_poses(publisher, Team::MatchSide::HOME);
             // team_blue.publish_poses(publisher, Team::MatchSide::HOME);

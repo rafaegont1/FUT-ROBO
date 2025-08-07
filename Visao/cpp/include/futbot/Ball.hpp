@@ -1,28 +1,26 @@
 #ifndef BALL_HPP
 #define BALL_HPP
 
-#include "futbot/Color.hpp"
-#include "futbot/Calibration.hpp"
-// #include "futbot/Publisher.hpp"
+#include <opencv2/core.hpp>
+#include "futbot/Video.hpp"
 
 class Ball {
 public:
-    Ball(const Calibration& calib);
-    Ball(const Color& color, const Calibration& calib, const std::string& configFile);
-    const cv::Point& findPose(Video& video);
-    // void publish_pose(Publisher& publisher);
-    const cv::Point& centroidWorld() const;
-    // std::string centroid_msg() const;
+    Ball();
+    virtual ~Ball();
+
+    void selectColor(Video& video);
+    void showSelectedColor(const Video& video) const;
+    std::optional<std::tuple<cv::Point2f, float>> findCentroid(
+        const cv::Mat& frame) const;
+
+    // Member variable getters
+    const cv::Scalar& lowerb() const { return m_lowerb; };
+    const cv::Scalar& upperb() const { return m_upperb; };
 
 private:
-    void fileRead(const std::string& configFile);
-
-    Color m_color;
-    cv::Point m_centroidImage;
-    cv::Point m_centroidWorld;
-    double m_minArea;
-    Calibration m_calib;
-    bool m_found = false;
+    cv::Scalar m_lowerb;
+    cv::Scalar m_upperb;
 };
 
 #endif // BALL_HPP

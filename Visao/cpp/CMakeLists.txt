@@ -22,11 +22,11 @@ find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
 # Define source files
 file(GLOB SOURCES
     src/main.cpp
-    src/Team.cpp
-    src/Color.cpp
-    # src/Ball.cpp
+    # src/Team.cpp
+    # src/Color.cpp
+    src/Ball.cpp
     src/Video.cpp
-    src/Calibration.cpp
+    # src/Calibration.cpp
     # src/Publisher.cpp
 )
 

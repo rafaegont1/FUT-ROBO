@@ -106,10 +106,9 @@ void Color::select(Video& video, const std::string& configFile)
     showSelectedColor(video);
 }
 
-std::vector<cv::Point> Color::findCentroids(const cv::Mat& frameHsv,
-    double minArea, std::size_t size) const
+std::optional<cv::Point> Color::findCentroid(const cv::Mat& frameHsv) const
 {
-    std::vector<cv::Point> centroids;
+    std::optional<cv::Point> centroid = std::nullopt;
 
     cv::Mat mask;
     cv::inRange(frameHsv, m_lowerb, m_upperb, mask);
@@ -117,25 +116,17 @@ std::vector<cv::Point> Color::findCentroids(const cv::Mat& frameHsv,
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    for (const auto& contour : contours) {
-        double area = cv::contourArea(contour);
-
-        if (area >= minArea) {
-            cv::Moments M = cv::moments(contour);
-
-            if (M.m00 != 0) {
-                int x = static_cast<int>(M.m10 / M.m00);
-                int y = static_cast<int>(M.m01 / M.m00);
-
-                centroids.emplace_back(x, y);
-
-                // Found all figures with minimum area
-                if (centroids.size() == size) {
-                    break;
-                }
+    if (!contours.empty()) {
+        const auto& maxContour = *std::max_element(contours.begin(), contours.end(),
+            [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
+                return cv::contourArea(a) < cv::contourArea(b);
             }
-        }
+        );
+
+        cv::Moments M = cv::moments(maxContour);
+        centroid.x = static_cast<int>(M.m10 / M.m00);
+        centroid.y = static_cast<int>(M.m01 / M.m00);
     }
 
-    return centroids;
+    return centroid;
 }
