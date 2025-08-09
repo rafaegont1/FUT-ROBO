@@ -2,25 +2,18 @@
 #define BALL_HPP
 
 #include <opencv2/core.hpp>
-#include "futbot/Video.hpp"
+#include "futbot/Color.hpp"
 
 class Ball {
 public:
-    Ball();
+    Ball(const Color& color);
     virtual ~Ball();
 
-    void selectColor(Video& video);
-    void showSelectedColor(const Video& video) const;
     std::optional<std::tuple<cv::Point2f, float>> findCentroid(
         const cv::Mat& frame) const;
 
-    // Member variable getters
-    const cv::Scalar& lowerb() const { return m_lowerb; };
-    const cv::Scalar& upperb() const { return m_upperb; };
-
 private:
-    cv::Scalar m_lowerb;
-    cv::Scalar m_upperb;
+    const Color& m_color;
 };
 
 #endif // BALL_HPP

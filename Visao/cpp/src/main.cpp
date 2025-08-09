@@ -6,14 +6,14 @@
 #include <string>
 // #include <chrono> // rascunho
 #include "futbot/Video.hpp"
-// #include "futbot/Calibration.hpp"
+#include "futbot/Calibration.hpp"
 // #include "futbot/Color.hpp"
-// #include "futbot/Team.hpp"
+#include "futbot/Team.hpp"
 // #include "futbot/Publisher.hpp"
 #include "futbot/Ball.hpp"
 
 // constexpr double RAD2DEG = 180 / M_PI;
-constexpr std::string configFile = "config.yaml";
+constexpr std::string CONFIG_FILE = "config.yaml";
 
 // inline std::string playerCoordToString(const Team::Player& player)
 // {
@@ -25,47 +25,37 @@ constexpr std::string configFile = "config.yaml";
 int main()
 {
     // Publisher publisher("MANAGER", "tcp://localhost:1883");
-
-    Video video(configFile);
-    // Calibration calib;
-
-    // calib.calibrate(video);
-
-    // Color green("verde");
-    // // Color blue("azul");
-    // Color pink("rosa");
-    // Color yellow("amarelo");
-    // // Color orange("laranja");
-
-    // if (!green.fileLodead()) green.select(video, configFile);
-    // // if (!blue.fileLodead()) blue.select(video, configFile);
-    // if (!pink.fileLodead()) pink.select(video, configFile);
-    // if (!yellow.fileLodead()) yellow.select(video, configFile);
-    // // if (!orange.fileLodead()) orange.select(video, configFile);
-
-    // Team teamGreen(green, pink, yellow, calib, configFile);
-    // // static Team teamBlue(calib);
-    Ball ball;
-
-    ball.selectColor(video);
-    ball.showSelectedColor(video);
+    Video video(CONFIG_FILE);
+    Color orange("laranja"), green("verde"), blue("azul"), pink("rosa"), yellow("amarelo");
+    Calibration calib;
+    Ball ball(orange);
+    std::array<Team, 2> teams{
+        Team{green, pink, yellow, CONFIG_FILE},
+        Team{blue, pink, yellow, CONFIG_FILE}
+    };
 
     try {
         int key;
 
+        calib.calibrate(video);
+
+        orange.select(video);
+        green.select(video);
+        blue.select(video);
+        pink.select(video);
+        yellow.select(video);
+
         do {
-            // auto start_time = std::chrono::high_resolution_clock::now(); // rascunho
             video.updateFrame();
 
-            // teamGreen.findPoses(video);
-            // teamBlue.findPoses(video);
             auto ballResult = ball.findCentroid(video.frameHsv());
             if (ballResult.has_value()) {
                 const auto& [ballCentroid, ballRadius] = ballResult.value();
-                video.drawCircle(ballCentroid, ballRadius);
+                video.drawCircle(ballCentroid, ballRadius, cv::Scalar(255, 0, 255));
+                cv::Point2f ballRealCentroid = calib.uvToXy(ballCentroid);
                 video.putText(
                     std::format("{:.2f},{:.2f}|{:.2f}",
-                        ballCentroid.x, ballCentroid.y, ballRadius
+                        ballRealCentroid.x, ballRealCentroid.y, ballRadius
                     ),
                     ballCentroid
                 );
@@ -73,21 +63,13 @@ int main()
                 std::println("Ball wasn't found!");
             }
 
-            // team_green.publish_poses(publisher, Team::MatchSide::HOME);
-            // team_blue.publish_poses(publisher, Team::MatchSide::HOME);
-
-            // teamGreen.invertThetaAngles();
-            // teamBlue.invertThetaAngles();
-
-            // team_green.publish_poses(publisher, Team::MatchSide::AWAY);
-            // team_blue.publish_poses(publisher, Team::MatchSide::AWAY);
-
-            // ball.publish_pose(publisher);
+            for (auto& team : teams) {
+                team.findPoses(video);
+                // for (const auto& player : team.players()) {
+                // }
+            }
 
             key = video.showFrame();
-            // auto end_time = std::chrono::high_resolution_clock::now(); // rascunho
-            // std::chrono::duration<double, std::milli> time = end_time - start_time; // rascunho
-            // std::cout << "Took " << time.count() << " ms to run.\n"; // rascunho
         } while (key != 27);
     } catch (const std::exception& e) {
         std::println(std::cerr, "Error: {}", e.what());

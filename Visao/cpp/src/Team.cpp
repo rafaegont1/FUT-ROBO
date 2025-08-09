@@ -1,23 +1,25 @@
 #include "futbot/Team.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
+#include <opencv2/core/types.hpp>
 #include <print>
+#include <opencv2/imgproc.hpp>
 
 Team::Team(const Color& teamColor, const Color& player1Color,
-    const Color& player2Color, const Calibration& calib,
-    const std::string& configFile) : m_teamColor{teamColor}, m_calib{calib},
-    m_players{player1Color, player2Color}
+    const Color& player2Color, const std::string& configFile)
+    : m_teamColor{teamColor}, m_players{player1Color, player2Color}
 {
-    readConfig(configFile);
+    readFile(configFile);
 }
 
-void Team::readConfig(const std::string& configFile)
+void Team::readFile(const std::string& filename)
 {
-    cv::FileStorage fs(configFile, cv::FileStorage::READ);
+    cv::FileStorage fs(filename, cv::FileStorage::READ);
 
     if (!fs.isOpened()) {
-        auto errorMsg = std::format("Couldn't open file `{}`", configFile);
+        auto errorMsg = std::format("Couldn't read file `{}`", filename);
         throw std::runtime_error(errorMsg);
     }
 
@@ -29,11 +31,42 @@ void Team::readConfig(const std::string& configFile)
     fs.release();
 }
 
-void Team::findPoses(Video& video)
+static std::vector<cv::Point> RotatedRectPoints(const cv::RotatedRect& rotatedRect)
 {
-    // Find centroids of figures that meet the minimum area
-    std::vector<cv::Point> centroids =
-        m_teamColor.findCentroids(video.frame.hsv, m_rectMinArea, 2);
+    std::vector<cv::Point> rectPts;
+    cv::Point2f pts[4];
+
+    rotatedRect.points(pts);
+
+    for (int i = 0; i < 4; i++) {
+        rectPts.emplace_back(pts[i].x, pts[i].y);
+    }
+
+    return rectPts;
+}
+
+cv::Mat Team::getRoi(Video& video, const cv::Point& centroid)
+{
+    const int topLeftX = centroid.x - m_roiRect.width / 2;
+    const int topLefty = centroid.y - m_roiRect.height / 2;
+    const int maxX = video.frameHsv().cols - m_roiRect.width;
+    const int maxY = video.frameHsv().rows - m_roiRect.height;
+
+    m_roiRect.x = std::clamp(topLeftX, 0, maxX);
+    m_roiRect.y = std::clamp(topLefty, 0, maxY);
+
+#ifdef MY_DEBUG
+    video.drawRect(m_roiRect, Color::CYAN);
+#endif // MY_DEBUG
+
+    cv::Mat frameHsvRoi = video.frameHsv()(m_roiRect);
+
+    return frameHsvRoi;
+}
+
+const std::array<Team::Player, 2>& Team::findPoses(Video& video)
+{
+    const auto rectContours = m_teamColor.findNLargestContours(video.frameHsv(), 2);
 
     // Set players as not found
     for (auto& player : m_players) {
@@ -42,32 +75,47 @@ void Team::findPoses(Video& video)
 
     // std::println("centroids size: {}", centroids.size()); // rascunho
 
-    for (const auto& centroid : centroids) {
-        cv::Mat frameHsvRoi = getRoi(video, centroid);
+    for (const auto& rectContour : rectContours) {
+        cv::RotatedRect contourRect = cv::minAreaRect(rectContour);
+        cv::Mat frameRoi = getRoi(video, contourRect.center);
 
         for (auto& player : m_players) {
             if (player.found) continue;
 
-            std::vector<cv::Point> centroidCircle =
-                player.color.findCentroids(frameHsvRoi, m_circleMinArea);
-            // Continue if circle with minimum area wasn't found
-            if (centroidCircle.empty()) continue;
+            auto circleContourRoi = player.color.findLargestContour(frameRoi);
 
-            player.centroidRect = centroid;
-            player.centroidCircle = centroidCircle.front();
+            // Continue if circle with minimum area wasn't found
+            if (circleContourRoi.empty()) continue;
+
+            // TODO: o centro do circulo está em relação ao ROI
+            cv::Point2f circleCentroidRoi;
+            float radiusCircleRoi;
+            cv::minEnclosingCircle(circleContourRoi, circleCentroidRoi, radiusCircleRoi);
+
+            player.centroidCircle.x = circleCentroidRoi.x + m_roiRect.x;
+            player.centroidCircle.y = circleCentroidRoi.y + m_roiRect.y;
+            player.centroidRect = contourRect.center;
 
 #ifdef MY_DEBUG
-            video.drawCircle(player.centroidRect,
-                std::format("{}|{}: {},{}",
-                m_teamColor.name(), player.color.name(), centroid.x, centroid.y));
+            video.drawCircle(player.centroidCircle, player.radiusCircle, Color::PINK);
+            video.drawCircle(player.centroidRect, 8, Color::YELLOW);
+            video.drawRect(m_roiRect, Color::BLUE);
+            video.drawPolyline(RotatedRectPoints(contourRect), true, Color::GREEN);
 #endif // MY_DEBUG
 
             player.found = true;
             std::println("Found player: {}|{}", m_teamColor.name(), player.color.name()); // rascunho
         }
 
-        if (allPlayersFound()) break;
+        // Break loop if all players were found
+        if (std::all_of(m_players.cbegin(), m_players.cend(),
+            [](const Player& p) { return p.found; }
+        )) {
+            break;
+        }
     }
+
+    return m_players;
 }
 
 // void Team::publish_poses(Publisher& pub, Team::MatchSide match_side)
@@ -99,36 +147,12 @@ void Team::findPoses(Video& video)
 //     }
 // }
 
-const std::array<Team::Player, 2>& Team::players() const
-{
-    return m_players;
-}
-
 // inline std::string Team::homeOrAway(Team::MatchSide matchSide) const
 // {
 //     return matchSide == MatchSide::HOME ? "HOME" :
 //            matchSide == MatchSide::AWAY ? "AWAY" :
 //            "UNKNOWN";
 // }
-
-cv::Mat Team::getRoi(Video& video, const cv::Point& centroid)
-{
-    const int topLeftX = centroid.x - m_roiRect.width / 2;
-    const int topLefty = centroid.y - m_roiRect.height / 2;
-    const int maxX = video.frame.hsv.cols - m_roiRect.width;
-    const int maxY = video.frame.hsv.rows - m_roiRect.height;
-
-    m_roiRect.x = std::clamp(topLeftX, 0, maxX);
-    m_roiRect.y = std::clamp(topLefty, 0, maxY);
-
-#ifdef MY_DEBUG
-    video.drawRect(m_roiRect);
-#endif // MY_DEBUG
-
-    cv::Mat frameHsvRoi = video.frame.hsv(m_roiRect);
-
-    return frameHsvRoi;
-}
 
 // double Team::getTheta(const cv::Point& rectPoint, const cv::Point& circlePoint)
 // {
@@ -137,26 +161,4 @@ cv::Mat Team::getRoi(Video& video, const cv::Point& centroid)
 //     // std::cout << "deltaX: " << deltaX << '\n'  // rascunho
 //     //           << "deltaY: " << deltaY << '\n'; // rascunho
 //     return std::atan2(deltaX, deltaY);
-// }
-
-bool Team::allPlayersFound() const
-{
-    for (const auto& player : m_players) {
-        if (!player.found) return false;
-    }
-
-    return true;
-}
-
-// void Team::invertThetaAngles()
-// {
-//     for (auto& player : m_players) {
-//         if (player.theta > 0) {
-//             player.theta -= 180.0;
-//         }
-//         // NOTE: aqui é `if theta<=0` ou `else`?
-//         if (player.theta <= 0) {
-//             player.theta += 180.0;
-//         }
-//     }
 // }

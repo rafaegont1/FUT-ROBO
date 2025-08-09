@@ -79,7 +79,7 @@ void Video::updateFrame()
     cv::cvtColor(m_frame, m_frameHsv, cv::COLOR_BGR2HSV);
 }
 
-int Video::showFrame()
+int Video::showFrame() const
 {
     cv::imshow(m_windowName, m_frame);
     return cv::waitKey(m_windowDelay);
@@ -91,15 +91,26 @@ void Video::putText(const cv::String& text, const cv::Point& org,
     cv::putText(m_frame, text, org, cv::FONT_HERSHEY_PLAIN, 1.5, color, 2);
 }
 
-void Video::drawCircle(const cv::Point& center, int radius)
+void Video::drawCircle(const cv::Point& center, int radius, const cv::Scalar& color)
 {
-    cv::circle(m_frame, center, radius, cv::Scalar(0, 0, 255), 2);
+    cv::circle(m_frame, center, radius, color, 2);
     // if (!text.empty()) {
     //     cv::putText(m_frame, text, center, fontName, 0.8, cv::Scalar(0, 0, 0));
     // }
 }
 
-void Video::drawRect(const cv::Rect& rect)
+void Video::drawContour(const std::vector<cv::Point>& contour, const cv::Scalar& color)
 {
-    cv::rectangle(m_frame, rect, cv::Scalar(255, 255, 0), 2);
+    cv::drawContours(m_frame, contour, -1, color);
+}
+
+void Video::drawRect(const cv::Rect& rect, const cv::Scalar& color)
+{
+    cv::rectangle(m_frame, rect, color, 2);
+}
+
+void Video::drawPolyline(const std::vector<cv::Point>& pts, bool isClosed,
+    const cv::Scalar& color)
+{
+    cv::polylines(m_frame, pts, isClosed, color);
 }

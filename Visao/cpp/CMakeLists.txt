@@ -16,17 +16,17 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find required packages
-find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui calib3d)
 # find_package(PahoMqttCpp REQUIRED)
 
 # Define source files
 file(GLOB SOURCES
     src/main.cpp
-    # src/Team.cpp
-    # src/Color.cpp
+    src/Team.cpp
+    src/Color.cpp
     src/Ball.cpp
     src/Video.cpp
-    # src/Calibration.cpp
+    src/Calibration.cpp
     # src/Publisher.cpp
 )
 

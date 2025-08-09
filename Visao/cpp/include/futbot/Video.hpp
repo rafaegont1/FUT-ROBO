@@ -10,11 +10,14 @@ public:
     virtual ~Video();
 
     void updateFrame();
-    int showFrame();
+    int showFrame() const;
     void putText(const cv::String& text, const cv::Point& org = cv::Point(0, 20),
         const cv::Scalar& color = cv::Scalar(80, 80, 80));
-    void drawCircle(const cv::Point& center, int radius);
-    void drawRect(const cv::Rect& rect);
+    void drawCircle(const cv::Point& center, int radius, const cv::Scalar& color);
+    void drawContour(const std::vector<cv::Point>& contour, const cv::Scalar& color);
+    void drawRect(const cv::Rect& rect, const cv::Scalar& color);
+    void drawPolyline(const std::vector<cv::Point>& pts, bool isClosed,
+        const cv::Scalar& color);
 
     // Member variables getters
     const std::string& windowName() const { return m_windowName; }

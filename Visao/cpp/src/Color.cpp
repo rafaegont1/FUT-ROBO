@@ -1,7 +1,10 @@
 #include "futbot/Color.hpp"
 
+#include <format>
 #include <opencv2/imgproc.hpp>
 #include <optional>
+
+// constexpr std::string COLOR_CONFIG_FILE = "color.yaml";
 
 Color::Color()
 {
@@ -9,31 +12,38 @@ Color::Color()
 
 Color::Color(const std::string& name) : m_name{name}
 {
-    readFile();
 }
 
-void Color::readFile()
+bool Color::readFile(const std::string& filename)
 {
-    cv::FileStorage fs(std::format("cfg/{}.yaml", m_name), cv::FileStorage::READ);
+    cv::FileStorage fs(filename, cv::FileStorage::READ);
 
     if (fs.isOpened()) {
         fs["lowerb"] >> m_lowerb;
         fs["upperb"] >> m_upperb;
-        m_fileLoaded = true;
+
         fs.release();
+
+        return true;
     }
+
+    return false;
 }
 
-void Color::showSelectedColor(const Video& video) const
+bool Color::writeFile(const std::string& filename)
 {
-    cv::Mat mask;
-    cv::inRange(video.frame.hsv, m_lowerb, m_upperb, mask);
+    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
 
-    cv::Mat frameMasked;
-    video.frame.raw.copyTo(frameMasked, mask);
+    if (fs.isOpened()) {
+        fs << "lowerb" << m_lowerb;
+        fs << "upperb" << m_upperb;
 
-    cv::imshow(video.windowName(), frameMasked);
-    cv::waitKey();
+        fs.release();
+
+        return true;
+    }
+
+    return false;
 }
 
 // static void clickEvent(int event, int x, int y, int flags, void* userdata)
@@ -47,32 +57,29 @@ void Color::showSelectedColor(const Video& video) const
 //     }
 // }
 
-void Color::select(Video& video, const std::string& configFile)
+static cv::Vec3b getFrameColor(Video& video, const std::string& colorName)
 {
-    cv::FileStorage fs(configFile, cv::FileStorage::READ);
-    int hueTolerance = (int)fs["color"]["hue_tol"];
-    int satTolerance = (int)fs["color"]["sat_tol"];
-    fs.release();
-
     std::optional<cv::Point> clickPoint = std::nullopt;
 
     // Sets mouse callback function
-    cv::setMouseCallback(video.windowName(),
+    cv::setMouseCallback(
+        video.windowName(),
         [](int event, int x, int y, int flags, void* userdata) -> void {
             (void)flags; // Prevent unused parameter warning
-            auto& clickPointRef =
-                *static_cast<std::optional<cv::Point>*>(userdata);
 
             if (event == cv::EVENT_LBUTTONDOWN) {
+                auto& clickPointRef =
+                    *static_cast<std::optional<cv::Point>*>(userdata);
                 clickPointRef = cv::Point(x, y);
             }
         },
-        &clickPoint);
+        &clickPoint
+    );
 
-    // Loop until user select a color
+    // Loop until the user select a color
     do {
         video.updateFrame();
-        video.putText(std::format("Selecione a cor `{}`", m_name));
+        video.putText(std::format("Selecione a cor `{}`", colorName));
         int key = video.showFrame();
         if (key == 27) { // key == ESC
             exit(EXIT_SUCCESS);
@@ -82,8 +89,16 @@ void Color::select(Video& video, const std::string& configFile)
     // Unsets mouse callback function
     cv::setMouseCallback(video.windowName(), nullptr);
 
-    cv::Vec3b clickHsv =
-        video.frame.hsv.at<cv::Vec3b>(clickPoint->y, clickPoint->x);
+    // Return the selected color
+    return video.frameHsv().at<cv::Vec3b>(clickPoint->y, clickPoint->x);
+}
+
+void Color::select(Video& video)
+{
+    constexpr int hueTolerance = 5;
+    constexpr int satTolerance = 75;
+
+    cv::Vec3b clickHsv = getFrameColor(video, m_name);
 
     // Store the selected hsv color
     m_lowerb = cv::Scalar(
@@ -91,42 +106,88 @@ void Color::select(Video& video, const std::string& configFile)
         std::clamp(static_cast<int>(clickHsv[1]) - satTolerance, 0, 255),
         20
     );
-
     m_upperb = cv::Scalar(
         std::clamp(static_cast<int>(clickHsv[0]) + hueTolerance, 0, 179),
         std::clamp(static_cast<int>(clickHsv[1]) + satTolerance, 0, 255),
         255
     );
 
-    fs.open(std::format("cfg/{}.yaml", m_name), cv::FileStorage::WRITE);
-    fs << "lowerb" << m_lowerb;
-    fs << "upperb" << m_upperb;
-    fs.release();
-
-    showSelectedColor(video);
+    showSelection(video);
 }
 
-std::optional<cv::Point> Color::findCentroid(const cv::Mat& frameHsv) const
+void Color::showSelection(const Video& video) const
 {
-    std::optional<cv::Point> centroid = std::nullopt;
+    // Create mask with lower and upper bounds
+    cv::Mat mask;
+    cv::inRange(video.frameHsv(), m_lowerb, m_upperb, mask);
 
+    // Create an masked frame using the created mask
+    cv::Mat frameMasked;
+    video.frame().copyTo(frameMasked, mask);
+
+    // Show selected color
+    cv::imshow(video.windowName(), frameMasked);
+    cv::waitKey();
+}
+
+void Color::findContours(const cv::Mat& frameHsv,
+    std::vector<std::vector<cv::Point>> &contours) const
+{
     cv::Mat mask;
     cv::inRange(frameHsv, m_lowerb, m_upperb, mask);
 
-    std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+}
 
-    if (!contours.empty()) {
-        const auto& maxContour = *std::max_element(contours.begin(), contours.end(),
-            [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
-                return cv::contourArea(a) < cv::contourArea(b);
-            }
-        );
+std::vector<std::vector<cv::Point>> Color::findNLargestContours(
+    const cv::Mat& frameHsv, int n) const
+{
+    std::vector<std::vector<cv::Point>> contours;
+    findContours(frameHsv, contours);
 
-        cv::Moments M = cv::moments(maxContour);
-        centroid.x = static_cast<int>(M.m10 / M.m00);
-        centroid.y = static_cast<int>(M.m01 / M.m00);
+    std::nth_element(
+        contours.begin(),
+        contours.begin() + n,
+        contours.end(),
+        [](const auto& a, const auto& b) {
+            return cv::contourArea(a) > cv::contourArea(b);
+        }
+    );
+
+    contours.resize(n);
+
+    return contours;
+}
+
+std::vector<cv::Point> Color::findLargestContour(const cv::Mat& frameHsv) const
+{
+    std::vector<std::vector<cv::Point>> contours;
+    findContours(frameHsv, contours);
+
+    if (contours.empty()) {
+        // Return an empty contour if `contours` is empty
+        return std::vector<cv::Point>();
     }
 
-    return centroid;
+    // Find contour of maximum area
+    return *std::max_element(contours.begin(), contours.end(),
+        [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
+            return cv::contourArea(a) < cv::contourArea(b);
+        }
+    );
 }
+
+//     if (!contours.empty()) {
+//         const auto& maxContour = *std::max_element(contours.begin(), contours.end(),
+//             [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
+//                 return cv::contourArea(a) < cv::contourArea(b);
+//             }
+//         );
+
+//         cv::Moments M = cv::moments(maxContour);
+//         centroid->x = static_cast<int>(M.m10 / M.m00);
+//         centroid->y = static_cast<int>(M.m01 / M.m00);
+//     }
+
+//     return centroid;
+// }

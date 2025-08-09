@@ -17,4 +17,4 @@ camera:
 
 window:
     name: window
-    delay: 34
+    delay: 100

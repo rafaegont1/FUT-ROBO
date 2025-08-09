@@ -2,7 +2,7 @@
 #define TEAM_HPP
 
 #include "futbot/Color.hpp"
-#include "futbot/Calibration.hpp"
+// #include "futbot/Calibration.hpp"
 // #include "futbot/Publisher.hpp"
 
 class Team {
@@ -15,21 +15,20 @@ public:
     struct Player {
         Player(const Color& color) : color{color} {}
 
-        std::string name;
-        cv::Point centroidCircle;
-        cv::Point centroidRect;
-        bool found;
         const Color& color;
+        cv::Point2f centroidCircle;
+        cv::Point2f centroidRect;
+        float radiusCircle;
+        bool found;
     };
 
     Team(const Color& teamColor, const Color& player1Color,
-        const Color& player2Color, const Calibration& calib,
-        const std::string& configFile);
-    void readConfig(const std::string& configFile);
-    void findPoses(Video& video);
+        const Color& player2Color, const std::string& configFile);
+    void readFile(const std::string& filename);
+    const std::array<Team::Player, 2>& findPoses(Video& video);
     // void publish_poses(Publisher& pub, Team::MatchSide match_side);
     // inline std::string homeOrAway(Team::MatchSide matchSide) const;
-    const std::array<Team::Player, 2>& players() const;
+    const std::array<Team::Player, 2>& players() const { return m_players; }
     // void invertThetaAngles();
 
 private:
@@ -46,7 +45,7 @@ private:
 
     std::string m_name;
     const Color& m_teamColor;
-    const Calibration& m_calib;
+    // const Calibration& m_calib;
     std::array<Player, 2> m_players;
     double m_rectMinArea;
     double m_circleMinArea;
