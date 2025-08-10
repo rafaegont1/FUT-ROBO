@@ -11,6 +11,8 @@ public:
 
     void updateFrame();
     int showFrame() const;
+    int showMaskedFrameHsv(const cv::Scalar& lowerb,
+        const cv::Scalar& upperb) const;
     void putText(const cv::String& text, const cv::Point& org = cv::Point(0, 20),
         const cv::Scalar& color = cv::Scalar(80, 80, 80));
     void drawCircle(const cv::Point& center, int radius, const cv::Scalar& color);

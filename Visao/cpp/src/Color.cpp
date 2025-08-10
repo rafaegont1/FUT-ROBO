@@ -103,22 +103,17 @@ void Color::select(Video& video)
     );
 
     writeFile();
-    showSelection(video);
+    showColorOnVideo(video);
 }
 
-void Color::showSelection(const Video& video) const
+void Color::showColorOnVideo(Video& video) const
 {
-    // Create mask with lower and upper bounds
-    cv::Mat mask;
-    cv::inRange(video.frameHsv(), m_lowerb, m_upperb, mask);
+    int key;
 
-    // Create an masked frame using the created mask
-    cv::Mat frameMasked;
-    video.frame().copyTo(frameMasked, mask);
-
-    // Show selected color
-    cv::imshow(video.windowName(), frameMasked);
-    cv::waitKey();
+    do {
+        video.updateFrame();
+        key = video.showMaskedFrameHsv(m_lowerb, m_upperb);
+    } while (key == -1); // while none key is pressed
 }
 
 void Color::findContours(const cv::Mat& frameHsv,

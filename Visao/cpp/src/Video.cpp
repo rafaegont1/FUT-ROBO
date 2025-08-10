@@ -85,6 +85,22 @@ int Video::showFrame() const
     return cv::waitKey(m_windowDelay);
 }
 
+int Video::showMaskedFrameHsv(const cv::Scalar& lowerb,
+    const cv::Scalar& upperb) const
+{
+    // Create mask with lower and upper bounds
+    cv::Mat mask;
+    cv::inRange(m_frameHsv, lowerb, upperb, mask);
+
+    // Create an masked frame using the created mask
+    cv::Mat frameMasked;
+    m_frame.copyTo(frameMasked, mask);
+
+    // Show frame using color mask
+    cv::imshow(m_windowName, frameMasked);
+    return cv::waitKey(m_windowDelay);
+}
+
 void Video::putText(const cv::String& text, const cv::Point& org,
     const cv::Scalar& color)
 {

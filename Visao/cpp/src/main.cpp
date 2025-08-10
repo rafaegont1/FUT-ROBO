@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <print>
 #include <string>
+#include <cmath>
 // #include <chrono> // rascunho
 #include "futbot/Video.hpp"
 #include "futbot/Calibration.hpp"
@@ -21,7 +22,15 @@ constexpr std::string CONFIG_FILE = "config.yaml";
 //         player.centroid_rect_world.y, static_cast<int>(player.theta*RAD2DEG));
 // }
 
-// int main(int argc, char* argv[])
+static inline float getTheta(const Team::Player& player)
+{
+    const float dx = player.centroidCircle.x - player.centroidRect.x;
+    const float dy = player.centroidCircle.y - player.centroidRect.y;
+
+    // The minus sign is import because `y = 0`  occurs on the top os the screen
+    return -std::atan2(dy, dx);
+}
+
 int main()
 {
     // Publisher publisher("MANAGER", "tcp://localhost:1883");
@@ -53,12 +62,10 @@ int main()
             auto ballResult = ball.findCentroid(video.frameHsv());
             if (ballResult.has_value()) {
                 const auto& [ballCentroid, ballRadius] = ballResult.value();
-                video.drawCircle(ballCentroid, ballRadius, cv::Scalar(255, 0, 255));
+                video.drawCircle(ballCentroid, ballRadius, Color::CYAN);
                 cv::Point2f ballRealCentroid = calib.uvToXy(ballCentroid);
                 video.putText(
-                    std::format("{:.2f},{:.2f}|{:.2f}",
-                        ballRealCentroid.x, ballRealCentroid.y, ballRadius
-                    ),
+                    std::format("{:.0f},{:.0f}", ballRealCentroid.x, ballRealCentroid.y),
                     ballCentroid
                 );
             } else {
@@ -69,8 +76,9 @@ int main()
                 team.findPoses(video);
                 for (const auto& player : team.players()) {
                     cv::Point2f playerRealCentroid = calib.uvToXy(player.centroidRect);
-                    auto text = std::format("{:.2f},{:.2f}",
-                        playerRealCentroid.x, playerRealCentroid.y);
+                    float playerAngle = getTheta(player);
+                    std::string text = std::format("{:.0f},{:.0f},{:.2f}",
+                        playerRealCentroid.x, playerRealCentroid.y, playerAngle);
                     video.putText(text, player.centroidRect);
                 }
             }

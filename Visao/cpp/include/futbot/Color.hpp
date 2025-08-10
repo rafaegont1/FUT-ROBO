@@ -27,7 +27,7 @@ public:
 
     // Select color from a video stream
     void select(Video& video);
-    void showSelection(const Video& video) const;
+    void showColorOnVideo(Video& video) const;
 
     // Get color contours on a frame
     void findContours(const cv::Mat& frameHsv,
