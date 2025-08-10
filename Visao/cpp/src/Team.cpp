@@ -45,28 +45,25 @@ static std::vector<cv::Point> RotatedRectPoints(const cv::RotatedRect& rotatedRe
     return rectPts;
 }
 
-cv::Mat Team::getRoi(Video& video, const cv::Point& centroid)
+cv::Mat Team::getRoi(const cv::Mat& frame, const cv::Point& centroid)
 {
     const int topLeftX = centroid.x - m_roiRect.width / 2;
     const int topLefty = centroid.y - m_roiRect.height / 2;
-    const int maxX = video.frameHsv().cols - m_roiRect.width;
-    const int maxY = video.frameHsv().rows - m_roiRect.height;
+    const int maxX = frame.cols - m_roiRect.width;
+    const int maxY = frame.rows - m_roiRect.height;
 
     m_roiRect.x = std::clamp(topLeftX, 0, maxX);
     m_roiRect.y = std::clamp(topLefty, 0, maxY);
 
-#ifdef MY_DEBUG
-    video.drawRect(m_roiRect, Color::CYAN);
-#endif // MY_DEBUG
-
-    cv::Mat frameHsvRoi = video.frameHsv()(m_roiRect);
+    cv::Mat frameHsvRoi = frame(m_roiRect);
 
     return frameHsvRoi;
 }
 
 const std::array<Team::Player, 2>& Team::findPoses(Video& video)
 {
-    const auto rectContours = m_teamColor.findNLargestContours(video.frameHsv(), 2);
+    std::vector<std::vector<cv::Point>> contours;
+    m_teamColor.findContours(video.frameHsv(), contours);
 
     // Set players as not found
     for (auto& player : m_players) {
@@ -75,17 +72,23 @@ const std::array<Team::Player, 2>& Team::findPoses(Video& video)
 
     // std::println("centroids size: {}", centroids.size()); // rascunho
 
-    for (const auto& rectContour : rectContours) {
-        cv::RotatedRect contourRect = cv::minAreaRect(rectContour);
-        cv::Mat frameRoi = getRoi(video, contourRect.center);
+    for (const auto& contour : contours) {
+        if (cv::contourArea(contour) < m_rectMinArea) continue;
+
+        cv::RotatedRect contourRect = cv::minAreaRect(contour);
+        std::vector<cv::Point> rotatedRectPts = RotatedRectPoints(contourRect);
+        cv::Mat frameRoi = getRoi(video.frameHsv(), contourRect.center);
 
         for (auto& player : m_players) {
             if (player.found) continue;
 
             auto circleContourRoi = player.color.findLargestContour(frameRoi);
+            if (circleContourRoi.empty()) continue;
+            double circleContourRoiArea = cv::contourArea(circleContourRoi);
 
             // Continue if circle with minimum area wasn't found
-            if (circleContourRoi.empty()) continue;
+            if (circleContourRoi.empty()
+            || circleContourRoiArea < m_circleMinArea) continue;
 
             // TODO: o centro do circulo está em relação ao ROI
             cv::Point2f circleCentroidRoi;
@@ -98,9 +101,9 @@ const std::array<Team::Player, 2>& Team::findPoses(Video& video)
 
 #ifdef MY_DEBUG
             video.drawCircle(player.centroidCircle, player.radiusCircle, Color::PINK);
-            video.drawCircle(player.centroidRect, 8, Color::YELLOW);
+            video.drawCircle(player.centroidRect, 6, Color::YELLOW);
             video.drawRect(m_roiRect, Color::BLUE);
-            video.drawPolyline(RotatedRectPoints(contourRect), true, Color::GREEN);
+            video.drawPolyline(rotatedRectPts, true, Color::GREEN);
 #endif // MY_DEBUG
 
             player.found = true;
@@ -111,6 +114,7 @@ const std::array<Team::Player, 2>& Team::findPoses(Video& video)
         if (std::all_of(m_players.cbegin(), m_players.cend(),
             [](const Player& p) { return p.found; }
         )) {
+            std::println("All found!"); // rascunho
             break;
         }
     }

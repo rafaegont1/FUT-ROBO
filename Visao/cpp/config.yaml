@@ -1,7 +1,7 @@
 %YAML:1.0
 ---
 color:
-    hue_tol: 5
+    hue_tol: 10
     sat_tol: 75
     rectMinArea: 200.0
     circleMinArea: 5.0
@@ -17,4 +17,4 @@ camera:
 
 window:
     name: window
-    delay: 100
+    delay: 34

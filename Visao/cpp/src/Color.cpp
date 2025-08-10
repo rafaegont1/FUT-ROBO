@@ -4,19 +4,23 @@
 #include <opencv2/imgproc.hpp>
 #include <optional>
 
-// constexpr std::string COLOR_CONFIG_FILE = "color.yaml";
+Color::Color(const std::string& name, const std::string& configFile) : m_name{name}
+{
+    cv::FileStorage fs(configFile, cv::FileStorage::READ);
 
-Color::Color()
+    fs["color"]["hue_tol"] >> m_hueTolerance;
+    fs["color"]["sat_tol"] >> m_satTolerance;
+
+    fs.release();
+}
+
+Color::~Color()
 {
 }
 
-Color::Color(const std::string& name) : m_name{name}
+bool Color::readFile()
 {
-}
-
-bool Color::readFile(const std::string& filename)
-{
-    cv::FileStorage fs(filename, cv::FileStorage::READ);
+    cv::FileStorage fs(std::format("{}.yaml", m_name), cv::FileStorage::READ);
 
     if (fs.isOpened()) {
         fs["lowerb"] >> m_lowerb;
@@ -30,9 +34,9 @@ bool Color::readFile(const std::string& filename)
     return false;
 }
 
-bool Color::writeFile(const std::string& filename)
+bool Color::writeFile()
 {
-    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
+    cv::FileStorage fs(std::format("{}.yaml", m_name), cv::FileStorage::WRITE);
 
     if (fs.isOpened()) {
         fs << "lowerb" << m_lowerb;
@@ -46,18 +50,7 @@ bool Color::writeFile(const std::string& filename)
     return false;
 }
 
-// static void clickEvent(int event, int x, int y, int flags, void* userdata)
-// {
-//     (void)flags; // Prevent unused parameter warning
-
-//     // Set `usedata` (aka `clickPoint`) value to the clicked point coordenates
-//     if (event == cv::EVENT_LBUTTONDOWN) {
-//         auto clickedPoint = static_cast<std::optional<cv::Point>*>(userdata);
-//         *clickedPoint = cv::Point(x, y);
-//     }
-// }
-
-static cv::Vec3b getFrameColor(Video& video, const std::string& colorName)
+static cv::Vec3b clickColor(Video& video, const std::string& colorName)
 {
     std::optional<cv::Point> clickPoint = std::nullopt;
 
@@ -95,23 +88,21 @@ static cv::Vec3b getFrameColor(Video& video, const std::string& colorName)
 
 void Color::select(Video& video)
 {
-    constexpr int hueTolerance = 5;
-    constexpr int satTolerance = 75;
-
-    cv::Vec3b clickHsv = getFrameColor(video, m_name);
+    cv::Vec3b clickHsv = clickColor(video, m_name);
 
     // Store the selected hsv color
     m_lowerb = cv::Scalar(
-        std::clamp(static_cast<int>(clickHsv[0]) - hueTolerance, 0, 179),
-        std::clamp(static_cast<int>(clickHsv[1]) - satTolerance, 0, 255),
+        std::clamp(static_cast<int>(clickHsv[0]) - m_hueTolerance, 0, 179),
+        std::clamp(static_cast<int>(clickHsv[1]) - m_satTolerance, 0, 255),
         20
     );
     m_upperb = cv::Scalar(
-        std::clamp(static_cast<int>(clickHsv[0]) + hueTolerance, 0, 179),
-        std::clamp(static_cast<int>(clickHsv[1]) + satTolerance, 0, 255),
+        std::clamp(static_cast<int>(clickHsv[0]) + m_hueTolerance, 0, 179),
+        std::clamp(static_cast<int>(clickHsv[1]) + m_satTolerance, 0, 255),
         255
     );
 
+    writeFile();
     showSelection(video);
 }
 
@@ -164,30 +155,15 @@ std::vector<cv::Point> Color::findLargestContour(const cv::Mat& frameHsv) const
     std::vector<std::vector<cv::Point>> contours;
     findContours(frameHsv, contours);
 
+    // Return an empty contour if `contours` is empty
     if (contours.empty()) {
-        // Return an empty contour if `contours` is empty
         return std::vector<cv::Point>();
     }
 
     // Find contour of maximum area
-    return *std::max_element(contours.begin(), contours.end(),
+    return *std::max_element(contours.cbegin(), contours.cend(),
         [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
             return cv::contourArea(a) < cv::contourArea(b);
         }
     );
 }
-
-//     if (!contours.empty()) {
-//         const auto& maxContour = *std::max_element(contours.begin(), contours.end(),
-//             [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
-//                 return cv::contourArea(a) < cv::contourArea(b);
-//             }
-//         );
-
-//         cv::Moments M = cv::moments(maxContour);
-//         centroid->x = static_cast<int>(M.m10 / M.m00);
-//         centroid->y = static_cast<int>(M.m01 / M.m00);
-//     }
-
-//     return centroid;
-// }

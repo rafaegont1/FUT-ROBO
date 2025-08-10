@@ -7,6 +7,7 @@
 
 class Color {
 public:
+    // Color BGR values
     inline static auto BLACK = cv::Scalar(0, 0, 0);
     inline static auto WHITE = cv::Scalar(255, 255, 255);
     inline static auto BLUE = cv::Scalar(255, 0, 0);
@@ -16,13 +17,19 @@ public:
     inline static auto CYAN = cv::Scalar(255, 255, 0);
     inline static auto PINK = cv::Scalar(255, 0, 255);
 
-    Color();
-    Color(const std::string& name);
+    // Constructor and destructor
+    Color(const std::string& name, const std::string& configFile);
+    virtual ~Color();
 
-    bool readFile(const std::string& filename);
-    bool writeFile(const std::string& filename);
+    // Read and write color params on a file
+    bool readFile();
+    bool writeFile();
+
+    // Select color from a video stream
     void select(Video& video);
     void showSelection(const Video& video) const;
+
+    // Get color contours on a frame
     void findContours(const cv::Mat& frameHsv,
         std::vector<std::vector<cv::Point>> &contours) const;
     std::vector<std::vector<cv::Point>> findNLargestContours(
@@ -35,9 +42,16 @@ public:
     const cv::Scalar& upperb() const { return m_upperb; }
 
 private:
+    // Color name
     std::string m_name;
+
+    // Lower and upper bounds of the HSV color
     cv::Scalar m_lowerb;
     cv::Scalar m_upperb;
+
+    // HUE and saturation tolerance to select the colors
+    int m_hueTolerance;
+    int m_satTolerance;
 };
 
 #endif // COLOR_HPP

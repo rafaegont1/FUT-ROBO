@@ -38,7 +38,7 @@ private:
     //     cv::Point pt2;
     // };
 
-    cv::Mat getRoi(Video& video, const cv::Point& centroid);
+    cv::Mat getRoi(const cv::Mat& frame, const cv::Point& centroid);
     // void find_player(Team::Player& player, cv::Point& centroid, Video& video);
     // double getTheta(const cv::Point& rectPoint, const cv::Point& circlePoint);
     bool allPlayersFound() const;

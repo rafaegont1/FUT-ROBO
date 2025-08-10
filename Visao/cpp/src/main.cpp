@@ -26,7 +26,9 @@ int main()
 {
     // Publisher publisher("MANAGER", "tcp://localhost:1883");
     Video video(CONFIG_FILE);
-    Color orange("laranja"), green("verde"), blue("azul"), pink("rosa"), yellow("amarelo");
+    Color orange("laranja", CONFIG_FILE), green("verde", CONFIG_FILE),
+        blue("azul", CONFIG_FILE), pink("rosa", CONFIG_FILE),
+        yellow("amarelo", CONFIG_FILE);
     Calibration calib;
     Ball ball(orange);
     std::array<Team, 2> teams{
@@ -39,11 +41,11 @@ int main()
 
         calib.calibrate(video);
 
-        orange.select(video);
-        green.select(video);
-        blue.select(video);
-        pink.select(video);
-        yellow.select(video);
+        if (!orange.readFile()) orange.select(video);
+        if (!green.readFile()) green.select(video);
+        if (!blue.readFile()) blue.select(video);
+        if (!pink.readFile()) pink.select(video);
+        if (!yellow.readFile()) yellow.select(video);
 
         do {
             video.updateFrame();
@@ -65,8 +67,12 @@ int main()
 
             for (auto& team : teams) {
                 team.findPoses(video);
-                // for (const auto& player : team.players()) {
-                // }
+                for (const auto& player : team.players()) {
+                    cv::Point2f playerRealCentroid = calib.uvToXy(player.centroidRect);
+                    auto text = std::format("{:.2f},{:.2f}",
+                        playerRealCentroid.x, playerRealCentroid.y);
+                    video.putText(text, player.centroidRect);
+                }
             }
 
             key = video.showFrame();
