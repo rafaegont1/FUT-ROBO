@@ -9,8 +9,10 @@ constexpr std::string CALIB_CONFIG_FILE = "calib.yaml";
 static const std::vector<cv::Point> XY_POINTS = {
     {0, 0},
     {-1190, 800},
+    {0, 800},
     {1190, 800},
     {1190, -800},
+    {0, -800},
     {-1190, -800}
 };
 

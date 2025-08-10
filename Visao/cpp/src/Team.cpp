@@ -7,10 +7,15 @@
 #include <print>
 #include <opencv2/imgproc.hpp>
 
-Team::Team(const Color& teamColor, const Color& player1Color,
+Team::Team(char mqttTopicPrefix, const Color& teamColor, const Color& player1Color,
     const Color& player2Color, const std::string& configFile)
     : m_teamColor{teamColor}, m_players{player1Color, player2Color}
 {
+    for (auto& player : m_players) {
+        player.mqttTopic = std::format("{}{}{}", mqttTopicPrefix,
+            m_teamColor.name(), player.color.name());
+    }
+
     readFile(configFile);
 }
 
@@ -82,7 +87,8 @@ const std::array<Team::Player, 2>& Team::findPoses(Video& video)
         for (auto& player : m_players) {
             if (player.found) continue;
 
-            auto circleContourRoi = player.color.findLargestContour(frameRoi);
+            std::vector<cv::Point> circleContourRoi =
+                player.color.findLargestContour(frameRoi);
             if (circleContourRoi.empty()) continue;
             double circleContourRoiArea = cv::contourArea(circleContourRoi);
 
@@ -92,8 +98,9 @@ const std::array<Team::Player, 2>& Team::findPoses(Video& video)
 
             // TODO: o centro do circulo está em relação ao ROI
             cv::Point2f circleCentroidRoi;
-            float radiusCircleRoi;
-            cv::minEnclosingCircle(circleContourRoi, circleCentroidRoi, radiusCircleRoi);
+            float radiusCircle;
+            cv::minEnclosingCircle(circleContourRoi, circleCentroidRoi, radiusCircle);
+            // std::println("robot cicle radius: {}", radiusCircle); // rascunho
 
             player.centroidCircle.x = circleCentroidRoi.x + m_roiRect.x;
             player.centroidCircle.y = circleCentroidRoi.y + m_roiRect.y;
@@ -101,20 +108,20 @@ const std::array<Team::Player, 2>& Team::findPoses(Video& video)
 
 #ifdef MY_DEBUG
             video.drawCircle(player.centroidCircle, player.radiusCircle, Color::PINK);
-            video.drawCircle(player.centroidRect, 6, Color::YELLOW);
+            video.drawCircle(player.centroidRect, 3, Color::YELLOW);
             video.drawRect(m_roiRect, Color::BLUE);
             video.drawPolyline(rotatedRectPts, true, Color::GREEN);
 #endif // MY_DEBUG
 
             player.found = true;
-            std::println("Found player: {}|{}", m_teamColor.name(), player.color.name()); // rascunho
+            // std::println("Found player: {}|{}", m_teamColor.name(), player.color.name()); // rascunho
         }
 
         // Break loop if all players were found
         if (std::all_of(m_players.cbegin(), m_players.cend(),
             [](const Player& p) { return p.found; }
         )) {
-            std::println("All found!"); // rascunho
+            // std::println("All found!"); // rascunho
             break;
         }
     }

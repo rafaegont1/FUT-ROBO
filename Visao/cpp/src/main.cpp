@@ -8,12 +8,11 @@
 // #include <chrono> // rascunho
 #include "futbot/Video.hpp"
 #include "futbot/Calibration.hpp"
-// #include "futbot/Color.hpp"
 #include "futbot/Team.hpp"
 // #include "futbot/Publisher.hpp"
 #include "futbot/Ball.hpp"
 
-// constexpr double RAD2DEG = 180 / M_PI;
+constexpr double RAD2DEG = 180 / M_PI;
 constexpr std::string CONFIG_FILE = "config.yaml";
 
 // inline std::string playerCoordToString(const Team::Player& player)
@@ -22,13 +21,10 @@ constexpr std::string CONFIG_FILE = "config.yaml";
 //         player.centroid_rect_world.y, static_cast<int>(player.theta*RAD2DEG));
 // }
 
-static inline float getTheta(const Team::Player& player)
+static inline float getTheta(const cv::Point2f pt1, const cv::Point2f pt2)
 {
-    const float dx = player.centroidCircle.x - player.centroidRect.x;
-    const float dy = player.centroidCircle.y - player.centroidRect.y;
-
     // The minus sign is import because `y = 0`  occurs on the top os the screen
-    return -std::atan2(dy, dx);
+    return std::atan2(pt1.y - pt2.y, pt1.x - pt2.x) * RAD2DEG;
 }
 
 int main()
@@ -41,8 +37,8 @@ int main()
     Calibration calib;
     Ball ball(orange);
     std::array<Team, 2> teams{
-        Team{green, pink, yellow, CONFIG_FILE},
-        Team{blue, pink, yellow, CONFIG_FILE}
+        Team{'H', green, pink, yellow, CONFIG_FILE},
+        Team{'A', blue, pink, yellow, CONFIG_FILE}
     };
 
     try {
@@ -62,12 +58,15 @@ int main()
             auto ballResult = ball.findCentroid(video.frameHsv());
             if (ballResult.has_value()) {
                 const auto& [ballCentroid, ballRadius] = ballResult.value();
-                video.drawCircle(ballCentroid, ballRadius, Color::CYAN);
                 cv::Point2f ballRealCentroid = calib.uvToXy(ballCentroid);
-                video.putText(
-                    std::format("{:.0f},{:.0f}", ballRealCentroid.x, ballRealCentroid.y),
-                    ballCentroid
-                );
+                std::string ballMsg = std::format("{:.0f},{:.0f}",
+                    ballRealCentroid.x, ballRealCentroid.y);
+                // std::println("ball radius: {}", ballRadius); // rascunho
+                // publisher.publish(ballMsg, "BALL");
+#ifdef MY_DEBUG
+                video.drawCircle(ballCentroid, ballRadius, Color::CYAN);
+                video.putText(ballMsg, ballCentroid);
+#endif // MY_DEBUG
             } else {
                 std::println("Ball wasn't found!");
             }
@@ -75,11 +74,15 @@ int main()
             for (auto& team : teams) {
                 team.findPoses(video);
                 for (const auto& player : team.players()) {
-                    cv::Point2f playerRealCentroid = calib.uvToXy(player.centroidRect);
-                    float playerAngle = getTheta(player);
-                    std::string text = std::format("{:.0f},{:.0f},{:.2f}",
-                        playerRealCentroid.x, playerRealCentroid.y, playerAngle);
-                    video.putText(text, player.centroidRect);
+                    cv::Point2f playerRealRectCentroid = calib.uvToXy(player.centroidRect);
+                    cv::Point2f playerRealCircleCentroid = calib.uvToXy(player.centroidCircle);
+                    float playerAngle = getTheta(playerRealCircleCentroid, playerRealRectCentroid);
+                    std::string playerMsg = std::format("{:.0f},{:.0f},{:.0f}",
+                        playerRealRectCentroid.x, playerRealRectCentroid.y, playerAngle);
+                    // publisher.publish(playerMsg, player.mqttTopic);
+#ifdef MY_DEBUG
+                    video.putText(playerMsg, player.centroidRect);
+#endif // MY_DEBUG
                 }
             }
 

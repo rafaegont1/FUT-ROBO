@@ -11,11 +11,6 @@
     devShells."${system}".default = let
       pkgs = import nixpkgs {
         inherit system;
-        # overlays = [
-        #   (final: prev: {
-        #     opencv4 = prev.opencv4.override { enableGtk3 = true; };
-        #   })
-        # ];
       };
     in pkgs.mkShell {
       packages = with pkgs; [
@@ -23,7 +18,10 @@
         gdb
         clang-tools
         (opencv.override { enableGtk3 = true; })
-        # opencv4
+        # mosquitto
+        # paho-mqtt-c
+        # paho-mqtt-cpp
+        # openssl
       ];
     };
   };

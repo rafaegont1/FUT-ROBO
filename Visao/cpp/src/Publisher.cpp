@@ -15,7 +15,7 @@ Publisher::Publisher(const std::string& client_id, const std::string& server_add
 
         mqtt::token_ptr connection_token = client_.connect(conn_opts);
         connection_token->wait();
-    } catch (const mqtt::exception& ex) {
+    } catch (const mqtt::exception& e) {
         std::println(std::cerr, "MQTT Exception: {}", e.what());
         exit(EXIT_FAILURE);
     }

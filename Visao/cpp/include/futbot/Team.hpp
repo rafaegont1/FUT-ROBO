@@ -15,6 +15,7 @@ public:
     struct Player {
         Player(const Color& color) : color{color} {}
 
+        std::string mqttTopic;
         const Color& color;
         cv::Point2f centroidCircle;
         cv::Point2f centroidRect;
@@ -22,7 +23,7 @@ public:
         bool found;
     };
 
-    Team(const Color& teamColor, const Color& player1Color,
+    Team(char mqttTopicPrefix, const Color& teamColor, const Color& player1Color,
         const Color& player2Color, const std::string& configFile);
     void readFile(const std::string& filename);
     const std::array<Team::Player, 2>& findPoses(Video& video);
