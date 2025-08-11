@@ -71,9 +71,8 @@ A classe `Team` armazena as cores do time e dos dois jogadores (robôs). Nela, �
 
 Por fim, a classe `Publisher` é utilizada para publicar os dados para os ESP32. Conecta-se no broker local Mosquitto que estará sendo executado na própria máquina, com *socket address* `tcp://localhost:1883`.
 
-[!CAUTION]
-
-A fim de melhorar a legibilidade e desempenho da parte de visão computacional, foi feita uma reconstrução do código fonte. Com isso, ainda não foi possível testar as funcionalidades da comunicação via MQTT, pois eu estava de férias e não tinha acesso ao laboratório de robótica.
+> [!WARNING]
+> A fim de melhorar a legibilidade e desempenho da parte de visão computacional, foi feita uma reconstrução do código fonte. Com isso, ainda não foi possível testar as funcionalidades da comunicação via MQTT, pois eu estava de férias e não tinha acesso ao laboratório de robótica.
 
 ### Uso
 
